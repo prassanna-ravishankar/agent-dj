@@ -1,0 +1,39 @@
+[project]
+name = "agent-dj"
+version = "0.1.0"
+description = "Local-first autonomous generative DJ"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "numpy>=2.0",
+  "pydantic>=2.8",
+  "python-osc>=1.9",
+  "rich>=13.7",
+  "scipy>=1.14",
+  "soundfile>=0.12",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.23", "ruff>=0.6"]
+# Exported MRT2 model files currently declare MLX format 0.31.1 in their header.
+# MLX function serialization is not forward-compatible with 0.32.x.
+magenta = ["magenta-rt[mlx]", "mlx==0.31.1"]
+
+[project.scripts]
+dj = "dj.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dj"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

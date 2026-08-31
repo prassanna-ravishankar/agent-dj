@@ -1,0 +1,2 @@
+"""Local music generator adapters."""
+

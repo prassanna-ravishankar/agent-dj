@@ -279,6 +279,16 @@ export function App() {
       ) : null}
 
       <nav className={styles.nav} aria-label="Views">
+        <div className={styles.brand} aria-label="Agent DJ">
+          <img
+            className={styles.brandMark}
+            src="/brand/agent-dj-mark-transparent-192.png"
+            alt=""
+            width="28"
+            height="28"
+          />
+          <span>Agent DJ</span>
+        </div>
         <button
           type="button"
           className={styles.navItem}

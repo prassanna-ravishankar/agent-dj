@@ -1,4 +1,8 @@
-# Agent DJ
+<p align="center">
+  <img src="assets/brand/agent-dj-github-avatar-1024.png" width="240" alt="Agent DJ logo">
+</p>
+
+<h1 align="center">Agent DJ</h1>
 
 Agent DJ is a functioning local-first generative music system. Magenta RealTime 2 creates musical
 material, SuperCollider keeps audio running and performs real-time mixing, and a separate local

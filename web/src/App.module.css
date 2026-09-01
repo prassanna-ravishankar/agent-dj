@@ -24,9 +24,29 @@
 .nav {
   flex: 0 0 auto;
   display: flex;
+  align-items: stretch;
   gap: var(--hairline);
   background: var(--line);
   border-bottom: var(--hairline) solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  background: var(--ground-sunken);
+  color: var(--ink);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.brandMark {
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
 }
 
 .navItem {
@@ -203,5 +223,20 @@
   /* On a narrow screen nothing stretches; the column scrolls naturally. */
   .stack > :nth-child(2) {
     flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .brand {
+    padding-right: var(--space-3);
   }
 }

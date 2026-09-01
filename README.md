@@ -14,13 +14,8 @@ agent disappears.
 
 ## Architecture
 
-```text
-human feedback ─┐
-future mic ──────┼─> Observation JSONL ─> local policy ─> generate + schedule
-future camera ───┘                                  │
-                                                   OSC
-Magenta RT 2 ─> prepared stereo buffers ─> SuperCollider decks/mixer ─> audio
-```
+![Agent DJ architecture: disposable inputs and control flow through certified CLI operations,
+separated by a safety boundary from the independently looping SuperCollider audio runtime](assets/architecture/agent-dj-architecture.png)
 
 Magenta can produce audio directly, but the current system keeps SuperCollider as the independent
 audio-device, deck, DSP, crossfade, limiter, and recording runtime. The live Magenta adapter is

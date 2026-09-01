@@ -97,6 +97,32 @@ The interface deliberately treats `86_400` seconds of future coverage as `SAFE`,
 unavailable measurements as unavailable, and withdraws its derived bar clock when timestamps are
 contradictory or stale.
 
+## Claude and Codex via MCP
+
+`dj-mcp` is a local stdio MCP server for coding agents. It deliberately exposes agent-sized,
+safety-gated operations rather than arbitrary shell access or real-time fader control:
+
+- `dj_inspect` — canonical state, process health, on-air deck, and future-coverage safety
+- `dj_submit_observation` — the six source-neutral feedback kinds
+- `dj_prepare_next` — generate phrase-sized material onto the off-air deck and analyse it
+- `dj_schedule_transition` — schedule a prepared deck at the next phrase boundary
+- `dj_review_recent_events` — recent concise operational evidence
+
+Every tool calls the existing certified `dj ... --json` interface. There is intentionally no MCP
+tool for stopping or restarting the audio runtime. The server, host agent, and model can disappear
+while SuperCollider continues the safe playing deck.
+
+Register the same local server with Codex and Claude Code:
+
+```bash
+codex mcp add agent-dj -- uv --directory "$PWD" run dj-mcp
+claude mcp add --scope local agent-dj -- uv --directory "$PWD" run dj-mcp
+```
+
+Restart the host after registration, then ask it to inspect Agent DJ before making a musical
+change. MCP is local; the model used by Claude or Codex may still require network access. The
+existing deterministic policy remains the fully local option.
+
 ## Machine-verifiable acceptance
 
 ```bash

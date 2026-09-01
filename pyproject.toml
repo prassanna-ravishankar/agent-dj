@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.115",
+  "mcp>=2,<3",
   "numpy>=2.0",
   "pydantic>=2.8",
   "python-osc>=1.9",
@@ -24,6 +25,7 @@ magenta = ["magenta-rt[mlx]", "mlx==0.31.1"]
 
 [project.scripts]
 dj = "dj.cli:app"
+dj-mcp = "dj.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

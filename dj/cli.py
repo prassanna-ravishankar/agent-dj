@@ -206,6 +206,20 @@ def state(json_output: bool = typer.Option(False, "--json", help="Emit JSON.")) 
     emit(current.model_dump(mode="json"), json_output)
 
 
+@app.command("events")
+def events_command(
+    limit: int = typer.Option(20, "--limit", min=1, max=500),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON."),
+) -> None:
+    """Read recent append-only operational events for the current session."""
+    store = SessionStore()
+    current = store.load(create=False)
+    event_log = store.events(current.session_id)
+    recent = event_log.read()[-limit:]
+    event_log.append("events_inspected", limit=limit, returned=len(recent))
+    emit({"ok": True, "events": recent}, json_output)
+
+
 @app.command()
 def start(
     test_mode: bool = typer.Option(False, "--test-mode"),

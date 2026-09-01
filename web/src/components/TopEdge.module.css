@@ -1,0 +1,142 @@
+/* Recording: a persistent hairline across the FULL top edge. Impossible to miss. */
+.edge {
+  flex: 0 0 auto;
+  height: var(--edge-height);
+  background: var(--line);
+}
+
+.edge[data-state='recording'] {
+  background: var(--red);
+  box-shadow: 0 0 14px var(--red-wash);
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--hairline) solid var(--line);
+  background: var(--ground-raised);
+}
+
+.left,
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.recording {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-label);
+  color: var(--red);
+}
+
+.recordingMark {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) solid var(--line);
+}
+
+/* Non-colour signal: filled square running, hollow square absent. */
+.mark {
+  width: 0.45rem;
+  height: 0.45rem;
+  border: 1px solid var(--ink-faint);
+}
+
+.block[data-state='running'] .mark {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.blockLabel {
+  color: var(--ink-faint);
+}
+
+.blockValue {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.block[data-state='running'] .blockValue {
+  color: var(--amber);
+}
+
+.demo {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-label);
+  color: var(--ground);
+  background: var(--ember);
+  padding: var(--space-1) var(--space-2);
+}
+
+.session {
+  font-size: var(--size-xs);
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentNote {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--ground-sunken);
+  border-bottom: var(--hairline) solid var(--line);
+  font-size: var(--size-xs);
+  color: var(--ink-muted);
+}
+
+/* Non-colour signal for the calm degraded state: a horizontal bar, not a warning glyph. */
+.agentNoteMark {
+  width: 0.75rem;
+  height: 1px;
+  background: var(--ink-muted);
+}
+
+@media (max-width: 900px) {
+  .bar {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .left,
+  .right {
+    gap: var(--space-2);
+  }
+
+  .blockLabel {
+    display: none;
+  }
+
+  .session {
+    display: none;
+  }
+}

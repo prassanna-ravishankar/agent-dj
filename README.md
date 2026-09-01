@@ -71,6 +71,28 @@ uv run dj feedback boring --json
 uv run dj feedback weird --json
 ```
 
+## Browser control surface
+
+The web app is a local control and observation surface. It calls the existing certified CLI;
+it is never in the audio path, and closing it cannot stop playback.
+
+```bash
+cd web
+npm install
+npm run build
+cd ..
+uv run dj web --port 8765 --json
+```
+
+Open `http://127.0.0.1:8765`. The server binds to loopback only. For frontend development, run
+`uv run dj web` in one terminal and `npm run dev` from `web/` in another; Vite proxies `/api` to
+the local server. Separately, the frontend-only `npm run demo` mode uses clearly labelled fixture
+states and does not contact the server or control audio.
+
+The interface deliberately treats `86_400` seconds of future coverage as `SAFE`, preserves
+unavailable measurements as unavailable, and withdraws its derived bar clock when timestamps are
+contradictory or stale.
+
 ## Machine-verifiable acceptance
 
 ```bash

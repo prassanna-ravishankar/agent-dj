@@ -1,0 +1,205 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: var(--hairline) solid var(--line);
+  background: var(--ground-raised);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.groupLabel {
+  line-height: 1;
+}
+
+.segmented {
+  display: flex;
+  border: var(--hairline) solid var(--line-strong);
+}
+
+.segment {
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  font-weight: var(--weight-bold);
+  color: var(--ink-faint);
+  background: var(--ground-sunken);
+  transition: color var(--dur-swap) var(--ease);
+}
+
+.segment + .segment {
+  border-left: var(--hairline) solid var(--line-strong);
+}
+
+.segment[data-active='true'] {
+  color: var(--amber);
+  background: var(--ground);
+}
+
+.action {
+  padding: var(--space-2) var(--space-4);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground-sunken);
+  font-size: var(--size-sm);
+  color: var(--ink);
+  transition: background var(--dur-swap) var(--ease);
+}
+
+.action:hover:not(:disabled) {
+  background: var(--ground);
+}
+
+.action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.bars {
+  display: flex;
+  gap: var(--hairline);
+  background: var(--line-strong);
+  border: var(--hairline) solid var(--line-strong);
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--ground-sunken);
+  min-width: 3.25rem;
+  transition: background var(--dur-swap) var(--ease);
+}
+
+.bar:hover:not(:disabled) {
+  background: var(--ground);
+}
+
+.bar:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.barValue {
+  font-size: var(--size-md);
+  font-weight: var(--weight-bold);
+  color: var(--amber);
+}
+
+.barUnit {
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.step {
+  width: 2rem;
+  height: 2rem;
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--size-md);
+  color: var(--ink-muted);
+}
+
+.step:hover:not(:disabled) {
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.select,
+.hz {
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground-sunken);
+  font-size: var(--size-sm);
+}
+
+.hz {
+  width: 6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.master {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.masterNote {
+  margin: 0;
+  font-size: var(--size-xs);
+  color: var(--ink-ghost);
+  font-style: italic;
+}
+
+.record {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground-sunken);
+  font-size: var(--size-sm);
+  color: var(--ink);
+}
+
+.record:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.record[data-state='recording'] {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* Non-colour signal: hollow circle idle, filled circle recording. */
+.recordMark {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+}
+
+.record[data-state='recording'] .recordMark {
+  background: var(--red);
+}
+
+@media (max-width: 900px) {
+  .controls {
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* Filter and master metering are demoted on the remote — they are desk work. */
+  .group:nth-child(4),
+  .group:nth-child(5) {
+    display: none;
+  }
+}

@@ -1,0 +1,343 @@
+.horizon {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: var(--hairline) solid var(--line);
+  background: linear-gradient(180deg, var(--ground-raised), var(--ground));
+  min-height: 12rem;
+}
+
+.nowColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-width: 11rem;
+  padding-right: var(--space-5);
+  border-right: var(--hairline) solid var(--line);
+}
+
+.nowLabel {
+  color: var(--amber);
+}
+
+.uncertain {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+  max-width: 16rem;
+  font-size: var(--size-xs);
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+/* Non-colour signal: a hollow square, distinct from the filled marks used elsewhere. */
+.uncertainMark {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-top: 0.15rem;
+  border: var(--hairline) solid var(--ink-muted);
+}
+
+.field {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  /* Headroom so a travelling intent's label clears the coverage edge. */
+  padding-top: var(--space-5);
+}
+
+.band {
+  position: absolute;
+  inset: 0 0 var(--space-6) 0;
+  overflow: hidden;
+}
+
+/* The one gradient in the design: coverage falloff. */
+.lit {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--amber-glow) 0%,
+    var(--amber-wash) calc(var(--falloff) * 0.6),
+    transparent var(--falloff)
+  );
+  clip-path: polygon(0 100%, 0 12%, var(--falloff) 62%, var(--falloff) 100%);
+  transition: clip-path var(--dur-settle) var(--ease);
+}
+
+.edge {
+  position: absolute;
+  top: 12%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--amber-bright), var(--amber-dim));
+  transform-origin: left center;
+  transform: scaleX(var(--falloff-frac));
+  box-shadow: 0 0 12px var(--amber-glow);
+  transition: transform var(--dur-settle) var(--ease);
+}
+
+.band[data-level='warning'] .edge {
+  background: linear-gradient(90deg, var(--ember), transparent);
+}
+
+.band[data-level='critical'] .edge {
+  background: linear-gradient(90deg, var(--red), transparent);
+}
+
+/* Clock uncertain: the field keeps its shape but stops asserting positions. */
+.band[data-uncertain='true'] .lit,
+.band[data-uncertain='true'] .edge {
+  opacity: 0.25;
+}
+
+.ruler {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--space-6);
+  height: 1.25rem;
+}
+
+.tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.tick[data-weight='beat'] {
+  height: 0.3rem;
+}
+.tick[data-weight='half'] {
+  height: 0.55rem;
+}
+.tick[data-weight='phrase'] {
+  height: 1.1rem;
+  background: var(--ink-faint);
+}
+
+.intents {
+  position: absolute;
+  inset: 0 0 var(--space-6) 0;
+  pointer-events: none;
+}
+
+/* Keep a label near the right edge from overflowing the panel. */
+.intent:last-child .intentBody {
+  max-width: 12rem;
+}
+
+.intent {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  transition: left var(--dur-settle) var(--ease);
+}
+
+/* Non-colour signal for pending: a dotted stem, unlike any solid element. */
+.intentStem {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  border-left: 1px dashed var(--amber-dim);
+}
+
+.intentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-left: var(--space-2);
+  max-width: 13rem;
+}
+
+.intentKind {
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--amber);
+  font-weight: var(--weight-bold);
+}
+
+.intentLands {
+  font-size: var(--size-xs);
+  color: var(--ink-muted);
+}
+
+.intentGoal {
+  font-size: var(--size-xs);
+  color: var(--ink-faint);
+  line-height: 1.3;
+}
+
+.coverageReadout {
+  position: relative;
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.safe {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* Non-colour signal for safe: a filled square. */
+.safeMark {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--amber);
+  align-self: center;
+}
+
+.safeWord {
+  font-family: var(--font-mono);
+  font-size: var(--size-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-label);
+  color: var(--amber);
+}
+
+.safeNote {
+  font-size: var(--size-xs);
+  color: var(--ink-faint);
+}
+
+.covered {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.coveredLevel {
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding-bottom: 0.25rem;
+}
+
+.coveredLevel[data-level='warning'] {
+  color: var(--ember);
+}
+.coveredLevel[data-level='critical'] {
+  color: var(--red);
+  font-weight: var(--weight-bold);
+}
+
+.offline {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4) 0;
+}
+
+/* Non-colour signal for offline: a struck-through square. */
+.offlineMark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: 0.2rem;
+  border: var(--hairline) solid var(--ink-faint);
+}
+
+.offlineMark::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -2px;
+  right: -2px;
+  height: 1px;
+  background: var(--ink-faint);
+}
+
+.offlineTitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--size-lg);
+  font-weight: var(--weight-medium);
+  color: var(--ink-muted);
+}
+
+.offlineBody {
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  max-width: 34rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .horizon {
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: auto;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .nowColumn {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    border-right: none;
+    border-bottom: var(--hairline) solid var(--line);
+    padding-right: 0;
+    padding-bottom: var(--space-3);
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  /* The desktop bar glyph is far too tall for a phone row; scale it to fit. */
+  .nowColumn [class*='cells'] {
+    font-size: var(--size-xl);
+  }
+
+  /* The remote answers "am I safe" first, so coverage leads and the band follows. */
+  .field {
+    min-height: 6rem;
+    padding-top: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  .band,
+  .ruler,
+  .intents {
+    position: relative;
+    inset: auto;
+    height: 4.5rem;
+  }
+
+  .ruler,
+  .intents {
+    display: none;
+  }
+
+  .coverageReadout {
+    margin-top: 0;
+  }
+
+  .intentBody {
+    max-width: 9rem;
+  }
+
+  .intentGoal {
+    display: none;
+  }
+}

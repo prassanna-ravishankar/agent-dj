@@ -1,0 +1,94 @@
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label {
+  line-height: 1;
+}
+
+.cells {
+  display: flex;
+  align-items: baseline;
+  gap: 0.06em;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  line-height: 0.95;
+}
+
+/* Fixed cell: reserved space so digits never reflow. */
+.cell {
+  position: relative;
+  display: inline-block;
+  width: 0.62em;
+  text-align: center;
+}
+
+/*
+ * The unlit ghost is always painted underneath — the cell exists even when the value does not.
+ * Drawn via CSS content so it never enters textContent or the accessibility tree.
+ */
+.cells[data-ghosted='true'] .cell::before {
+  content: '8';
+  color: var(--ink-ghost);
+  user-select: none;
+}
+
+/* Present values still reserve the cell, but paint nothing in unused leading positions. */
+.cells[data-ghosted='false'] .cell::before {
+  content: '';
+}
+
+.glyph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.unit {
+  margin-left: 0.35em;
+  font-size: 0.4em;
+  letter-spacing: var(--track-label);
+  color: var(--ink-faint);
+  font-weight: var(--weight-medium);
+  align-self: flex-end;
+  padding-bottom: 0.2em;
+}
+
+.sm .cells {
+  font-size: var(--size-lg);
+}
+.md .cells {
+  font-size: var(--size-xl);
+}
+.lg .cells {
+  font-size: var(--size-2xl);
+}
+.xl .cells {
+  font-size: var(--size-3xl);
+}
+
+.amber .glyph {
+  color: var(--amber);
+}
+.slate .glyph {
+  color: var(--slate);
+}
+.ember .glyph {
+  color: var(--ember);
+}
+.red .glyph {
+  color: var(--red);
+}
+.ink .glyph {
+  color: var(--ink);
+}
+
+/* When the whole readout is absent, even the label recedes. */
+.readout[data-value='unavailable'] .label {
+  color: var(--ink-ghost);
+}

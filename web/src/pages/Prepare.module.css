@@ -1,0 +1,153 @@
+.prepare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: var(--hairline);
+  background: var(--line);
+  flex: 1 1 auto;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--ground-sunken);
+}
+
+.heading {
+  margin: 0;
+}
+
+.facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: var(--space-3);
+  font-size: var(--size-sm);
+}
+
+.fact dt {
+  color: var(--ink-faint);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  font-size: var(--size-xs);
+}
+
+.fact dd {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.fact dd[data-state='running'] {
+  color: var(--amber);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.button {
+  padding: var(--space-2) var(--space-4);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground);
+  font-size: var(--size-sm);
+  color: var(--ink);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--ground-raised);
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--size-xs);
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+}
+
+.fieldLabel {
+  line-height: 1;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.select,
+.input,
+.textarea {
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground);
+  font-size: var(--size-sm);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.input {
+  font-variant-numeric: tabular-nums;
+}
+
+.deckRow {
+  display: grid;
+  grid-template-columns: 1.5rem 5.5rem 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: var(--hairline) solid var(--line);
+  font-size: var(--size-sm);
+}
+
+.deckName {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-bold);
+  color: var(--ink);
+}
+
+.deckStatus {
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--slate);
+}
+
+.deckStatus[data-status='playing'] {
+  color: var(--amber);
+}
+
+.deckStatus[data-status='failed'] {
+  color: var(--red);
+}
+
+.deckPrompt {
+  color: var(--ink-muted);
+  font-size: var(--size-xs);
+  line-height: 1.4;
+}
+
+.absent {
+  color: var(--ink-ghost);
+}

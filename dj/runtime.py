@@ -99,6 +99,7 @@ class RuntimeController:
         state = self.store.load()
         state.status = "stopped"
         state.transport.playing = False
+        state.transport.started_at = None
         self.store.save(state)
         self.store.events(state.session_id).append("runtime_stopped")
         self.ready_file.unlink(missing_ok=True)

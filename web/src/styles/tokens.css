@@ -1,0 +1,111 @@
+/**
+ * The ONLY source of colour, type, spacing, and motion.
+ * scripts/check-tokens.mjs fails the build on a literal colour or duration outside this file.
+ *
+ * Palette: "one light source". Warm near-black ground, a single amber-white emissive that
+ * only ever means on-air / guaranteed. Colour is spent, never decorated.
+ */
+
+:root {
+  /* Ground — warm near-black, brown-leaning, never blue. */
+  --ground: #0e0d0c;
+  --ground-raised: #141211;
+  --ground-sunken: #0a0908;
+
+  /* Hairlines and structure. Depth comes from light falloff, not elevation. */
+  --line: #26221f;
+  --line-strong: #3a332e;
+
+  /* The one light source: on-air / guaranteed. */
+  --amber: #ffb454;
+  --amber-bright: #ffd9a0;
+  --amber-dim: #8a5f28;
+  --amber-glow: rgba(255, 180, 84, 0.14);
+  --amber-wash: rgba(255, 180, 84, 0.06);
+  /* On-air body wash — the emissive deck surface. */
+  --amber-body: rgba(255, 180, 84, 0.07);
+
+  /* Prepared but silent — the -60 dB truth. Cold, unlit. */
+  --slate: #8fa3b0;
+  --slate-dim: #4a565e;
+  --slate-wash: rgba(143, 163, 176, 0.05);
+
+  /* Coverage warning. */
+  --ember: #e8712f;
+  --ember-wash: rgba(232, 113, 47, 0.1);
+
+  /* Reserved EXCLUSIVELY for critical coverage and recording. */
+  --red: #ff3b30;
+  --red-wash: rgba(255, 59, 48, 0.12);
+
+  /* Text. */
+  --ink: #e8e2da;
+  --ink-muted: #9a9088;
+  --ink-faint: #635c55;
+  --ink-ghost: #2e2a26;
+
+  /* Type. */
+  --font-display: 'Inter Tight', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --size-xs: 0.6875rem;
+  --size-sm: 0.75rem;
+  --size-md: 0.875rem;
+  --size-lg: 1.125rem;
+  --size-xl: 1.75rem;
+  --size-2xl: 2.75rem;
+  --size-3xl: 4.5rem;
+
+  --track-label: 0.14em;
+  --track-tight: -0.01em;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  /* Space. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+
+  /* Motion — reserved for what is actually moving in the music. */
+  --dur-instant: 0ms;
+  --dur-swap: 120ms;
+  --dur-settle: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Scrim behind the modal reference. */
+  --scrim: rgba(10, 9, 8, 0.85);
+
+  /* Indeterminate preparing sweep — the only looping animation. */
+  --dur-sweep: 1600ms;
+
+  /* Layout. */
+  --edge-height: 3px;
+  --rail-width: 21rem;
+  --hairline: 1px;
+}
+
+/**
+ * Reduced motion is a real alternate mode, not durations set to zero: the horizon stops
+ * scrolling and steps once per bar; the transport becomes a static readout.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-swap: 0ms;
+    --dur-settle: 0ms;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: #4a423b;
+    --line-strong: #6b5f54;
+    --ink-muted: #c0b6ac;
+    --ink-faint: #8d8479;
+  }
+}

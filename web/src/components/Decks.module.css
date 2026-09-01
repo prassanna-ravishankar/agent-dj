@@ -1,0 +1,256 @@
+.decks {
+  position: relative;
+  display: grid;
+  align-content: stretch;
+  /* Absorb slack, but never stretch into emptiness on a tall screen. */
+  max-height: 22rem;
+  grid-auto-rows: minmax(0, 1fr);
+  /* Asymmetric by default; the grid re-weights when the on-air deck changes. */
+  grid-template-columns: 1.6fr 1fr;
+  gap: var(--hairline);
+  background: var(--line);
+  border-bottom: var(--hairline) solid var(--line);
+  transition: grid-template-columns var(--dur-settle) var(--ease);
+}
+
+/* When B is on air the weighting inverts — the lit deck is always the larger body. */
+.decks:has(.deck[data-live='true']:last-of-type) {
+  grid-template-columns: 1fr 1.6fr;
+}
+
+.deck {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--ground-sunken);
+  min-height: 11rem;
+  transition:
+    background var(--dur-swap) var(--ease),
+    box-shadow var(--dur-swap) var(--ease);
+}
+
+/* The on-air deck is the only surface that emits. */
+.deck[data-state='on-air'] {
+  background: linear-gradient(160deg, var(--amber-body), var(--ground-raised));
+  box-shadow: inset 0 0 80px var(--amber-wash);
+}
+
+.deck[data-focused='true'] {
+  background-color: var(--ground-raised);
+}
+
+.marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+}
+
+.deck[data-state='on-air'] .marker {
+  background: var(--amber);
+  box-shadow: 0 0 16px var(--amber-glow);
+}
+
+.deck[data-state='generation-failed'] .marker {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--red) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.deckLabel {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.status {
+  margin: 0;
+  font-size: var(--size-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-tight);
+  line-height: 1;
+  color: var(--slate);
+}
+
+.status[data-status='playing'] {
+  color: var(--amber-bright);
+}
+.status[data-status='preparing'] {
+  color: var(--ink-muted);
+}
+.status[data-status='failed'] {
+  color: var(--red);
+}
+
+.readouts {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.prompt {
+  margin: 0;
+  font-size: var(--size-sm);
+  line-height: 1.5;
+  color: var(--ink-muted);
+  max-width: 46ch;
+}
+
+.deck[data-state='on-air'] .prompt {
+  color: var(--ink);
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--size-sm);
+  line-height: 1.5;
+  color: var(--ink-faint);
+  font-style: italic;
+  max-width: 46ch;
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+  font-size: var(--size-xs);
+}
+
+.meta {
+  color: var(--ink-faint);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.metaAbsent {
+  color: var(--ink-ghost);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.failed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--red);
+}
+
+/* Non-colour signal for failure: a diagonal cross. */
+.failedMark {
+  position: relative;
+  width: 0.6rem;
+  height: 0.6rem;
+}
+
+.failedMark::before,
+.failedMark::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--red);
+}
+
+.failedMark::before {
+  transform: rotate(45deg);
+}
+.failedMark::after {
+  transform: rotate(-45deg);
+}
+
+.incoming {
+  color: var(--amber);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  font-weight: var(--weight-medium);
+}
+
+/* Preparing: a horizontal indeterminate fill. Never a spinner. */
+.preparing {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.preparingFill {
+  display: block;
+  width: 30%;
+  height: 100%;
+  background: var(--ink-muted);
+  animation: sweep var(--dur-sweep) linear infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(333%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preparingFill {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
+/* The phrase seam — probe B's signature. A lit dotted boundary travelling toward the swap. */
+.seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--seam);
+  width: 1px;
+  border-left: 1px dashed var(--amber);
+  box-shadow: 0 0 18px var(--amber-glow);
+  transition: left var(--dur-settle) var(--ease);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .decks,
+  .decks:has(.deck[data-live='true']:last-of-type) {
+    grid-template-columns: 1fr;
+  }
+
+  .deck {
+    min-height: auto;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* On mobile the off-air deck collapses to its essentials. */
+  .deck[data-state='prepared'] .prompt,
+  .deck[data-state='prepared'] .empty {
+    display: none;
+  }
+
+  .seam {
+    display: none;
+  }
+
+  .status {
+    font-size: var(--size-lg);
+  }
+}

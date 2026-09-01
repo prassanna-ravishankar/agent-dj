@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+import uvicorn
 from rich.console import Console
 from rich.table import Table
 
@@ -224,6 +225,27 @@ def stop(json_output: bool = typer.Option(False, "--json")) -> None:
 @app.command()
 def status(json_output: bool = typer.Option(False, "--json")) -> None:
     emit(RuntimeController().status(), json_output)
+
+
+@app.command("web")
+def web_command(
+    port: int = typer.Option(8765, "--port", min=1024, max=65535),
+    json_output: bool = typer.Option(False, "--json", help="Emit startup JSON."),
+) -> None:
+    """Serve the local browser control surface on loopback only."""
+    dist = Path(__file__).resolve().parents[1] / "web" / "dist"
+    if not (dist / "index.html").exists():
+        raise typer.BadParameter("web/dist is missing; run `cd web && npm run build`")
+    emit(
+        {
+            "ok": True,
+            "url": f"http://127.0.0.1:{port}",
+            "local_only": True,
+            "audio_path": False,
+        },
+        json_output,
+    )
+    uvicorn.run("dj.web_server:app", host="127.0.0.1", port=port, log_level="warning")
 
 
 @agent_app.command("start")

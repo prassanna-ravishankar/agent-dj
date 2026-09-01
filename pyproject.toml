@@ -5,6 +5,7 @@ description = "Local-first autonomous generative DJ"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "fastapi>=0.115",
   "numpy>=2.0",
   "pydantic>=2.8",
   "python-osc>=1.9",
@@ -12,10 +13,11 @@ dependencies = [
   "scipy>=1.14",
   "soundfile>=0.12",
   "typer>=0.12",
+  "uvicorn>=0.32",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.23", "ruff>=0.6"]
+dev = ["httpx>=0.27", "pytest>=8.3", "pytest-asyncio>=0.23", "ruff>=0.6"]
 # Exported MRT2 model files currently declare MLX format 0.31.1 in their header.
 # MLX function serialization is not forward-compatible with 0.32.x.
 magenta = ["magenta-rt[mlx]", "mlx==0.31.1"]

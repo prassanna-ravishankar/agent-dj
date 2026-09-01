@@ -1,0 +1,207 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  z-index: 0;
+}
+
+.skip {
+  position: absolute;
+  top: -100px;
+  left: var(--space-2);
+  z-index: 30;
+  padding: var(--space-2) var(--space-3);
+  background: var(--amber);
+  color: var(--ground);
+  font-size: var(--size-sm);
+}
+
+.skip:focus {
+  top: var(--space-2);
+}
+
+.nav {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--hairline);
+  background: var(--line);
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.navItem {
+  padding: var(--space-2) var(--space-4);
+  background: var(--ground-sunken);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.navItem[data-active='true'] {
+  color: var(--amber);
+  background: var(--ground);
+}
+
+.main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.console {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr var(--rail-width);
+  min-height: 0;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The decks are the subject, so they absorb any vertical slack. The gesture row
+   then sits at the floor of the viewport with no dead space anywhere. */
+.stack > :nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.demoBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--ember-wash);
+  border-bottom: var(--hairline) solid var(--ember);
+  flex-wrap: wrap;
+}
+
+.demoTag {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-label);
+  color: var(--ground);
+  background: var(--ember);
+  padding: var(--space-1) var(--space-2);
+}
+
+.demoLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.demoSelect {
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground);
+  font-size: var(--size-xs);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.demoNote {
+  font-size: var(--size-xs);
+  color: var(--ink-muted);
+}
+
+.commandError {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--red-wash);
+  border-bottom: var(--hairline) solid var(--red);
+  font-size: var(--size-xs);
+  color: var(--ink);
+}
+
+.dismiss {
+  margin-left: auto;
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-decoration: underline;
+}
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-6);
+}
+
+.unavailable {
+  max-width: 34rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.centeredTitle {
+  margin: 0;
+  font-size: var(--size-lg);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.centeredBody {
+  margin: 0;
+  font-size: var(--size-sm);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.link {
+  color: var(--amber);
+}
+
+.retry {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground-sunken);
+  font-size: var(--size-sm);
+}
+
+@media (max-width: 1100px) {
+  .console {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+  }
+
+  .stack,
+  .rail {
+    overflow: visible;
+    min-height: auto;
+  }
+
+  /* On a narrow screen nothing stretches; the column scrolls naturally. */
+  .stack > :nth-child(2) {
+    flex: 0 0 auto;
+  }
+}

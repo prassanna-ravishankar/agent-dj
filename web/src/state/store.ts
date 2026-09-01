@@ -18,6 +18,8 @@ export interface AppState {
   pendingFeedback: FeedbackKind | null
   /** Last command error, surfaced inline rather than as a toast. */
   commandError: AdapterError | null
+  /** Human-readable command currently awaiting the local control plane. */
+  pendingCommand: string | null
   focusedDeck: DeckName
   /** Announcements for the ARIA live region. */
   announcement: string
@@ -29,6 +31,7 @@ export const initialState: AppState = {
   error: null,
   pendingFeedback: null,
   commandError: null,
+  pendingCommand: null,
   focusedDeck: 'A',
   announcement: '',
 }
@@ -39,6 +42,8 @@ export type Action =
   | { type: 'load/fail'; error: AdapterError }
   | { type: 'feedback/pending'; kind: FeedbackKind }
   | { type: 'feedback/settled' }
+  | { type: 'command/start'; label: string }
+  | { type: 'command/settled' }
   | { type: 'command/fail'; error: AdapterError }
   | { type: 'command/clear' }
   | { type: 'deck/focus'; deck: DeckName }
@@ -61,8 +66,14 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'feedback/settled':
       return { ...state, pendingFeedback: null }
 
+    case 'command/start':
+      return { ...state, pendingCommand: action.label, commandError: null }
+
+    case 'command/settled':
+      return { ...state, pendingCommand: null }
+
     case 'command/fail':
-      return { ...state, commandError: action.error, pendingFeedback: null }
+      return { ...state, commandError: action.error, pendingFeedback: null, pendingCommand: null }
 
     case 'command/clear':
       return { ...state, commandError: null }

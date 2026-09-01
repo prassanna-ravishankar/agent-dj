@@ -26,6 +26,14 @@ import { err, ok } from './types'
 
 export const API_BASE = '/api'
 
+/** Local ML and audio-process startup are expected to exceed ordinary control latency. */
+export const TIMEOUT_MS = {
+  read: 10_000,
+  control: 15_000,
+  process: 35_000,
+  generation: 610_000,
+} as const
+
 export interface DJClient {
   snapshot(): Promise<Result<Snapshot>>
   doctor(): Promise<Result<DoctorReport>>
@@ -61,7 +69,7 @@ function describe(error: unknown): AdapterError {
 async function request<T>(
   path: string,
   init?: RequestInit,
-  timeoutMs = 10_000,
+  timeoutMs: number = TIMEOUT_MS.read,
 ): Promise<Result<T>> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -97,18 +105,24 @@ async function request<T>(
 
 /** Live client against the local HTTP/SSE contract in web/HANDOFF.md. */
 export function createLiveClient(): DJClient {
-  const post = <T,>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
+  const post = <T,>(path: string, body?: unknown, timeoutMs: number = TIMEOUT_MS.control) =>
+    request<T>(
+      path,
+      { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) },
+      timeoutMs,
+    )
 
   return {
     snapshot: () => request<Snapshot>('/snapshot'),
     doctor: () => request<DoctorReport>('/doctor'),
-    startRuntime: (testMode) => post<ProcessHealth>('/runtime/start', { test_mode: testMode }),
+    startRuntime: (testMode) =>
+      post<ProcessHealth>('/runtime/start', { test_mode: testMode }, TIMEOUT_MS.process),
     stopRuntime: () => post<ProcessHealth>('/runtime/stop'),
-    startAgent: (testMode) => post<ProcessHealth>('/agent/start', { test_mode: testMode }),
+    startAgent: (testMode) =>
+      post<ProcessHealth>('/agent/start', { test_mode: testMode }, TIMEOUT_MS.process),
     stopAgent: () => post<ProcessHealth>('/agent/stop'),
     generate: (deck, prompt, bpm, duration) =>
-      post<void>('/generate', { deck, prompt, bpm, duration }),
+      post<void>('/generate', { deck, prompt, bpm, duration }, TIMEOUT_MS.generation),
     play: (deck) => post<void>('/play', { deck }),
     crossfade: (target, bars) => post<void>('/crossfade', { target, bars }),
     gain: (deck, gainDb) => post<void>('/gain', { deck, gain_db: gainDb }),

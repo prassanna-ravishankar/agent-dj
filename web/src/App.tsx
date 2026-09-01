@@ -101,11 +101,14 @@ export function App() {
         announce(`${label} is unavailable in demo mode.`)
         return
       }
+      dispatch({ type: 'command/start', label })
+      announce(`${label} in progress.`)
       const result = await action()
       if (!result.ok && result.error) {
         dispatch({ type: 'command/fail', error: result.error as never })
         announce(`${label} failed.`)
       } else {
+        dispatch({ type: 'command/settled' })
         announce(`${label} accepted.`)
         void load()
       }
@@ -313,6 +316,7 @@ export function App() {
           <Prepare
             snapshot={snapshot}
             demo={snapshot.demo}
+            pendingCommand={state.pendingCommand}
             onGenerate={(deck, prompt, bpm, duration) =>
               run(`Generate deck ${deck}`, () => client.generate(deck, prompt, bpm, duration))
             }

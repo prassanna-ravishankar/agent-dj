@@ -12,12 +12,13 @@ import styles from './Prepare.module.css'
 interface Props {
   snapshot: Snapshot
   demo: boolean
+  pendingCommand: string | null
   onGenerate: (deck: DeckName, prompt: string, bpm: number, duration: number) => void
   onRuntime: (action: 'start' | 'stop', testMode: boolean) => void
   onAgent: (action: 'start' | 'stop', testMode: boolean) => void
 }
 
-export function Prepare({ snapshot, demo, onGenerate, onRuntime, onAgent }: Props) {
+export function Prepare({ snapshot, demo, pendingCommand, onGenerate, onRuntime, onAgent }: Props) {
   const [deck, setDeck] = useState<DeckName>('A')
   const [prompt, setPrompt] = useState('warm groovy house, percussion-forward, patient')
   const [bpm, setBpm] = useState(124)
@@ -55,18 +56,26 @@ export function Prepare({ snapshot, demo, onGenerate, onRuntime, onAgent }: Prop
           <button
             type="button"
             className={styles.button}
-            disabled={demo}
+            disabled={demo || pendingCommand !== null}
             onClick={() => onRuntime(runtime.running ? 'stop' : 'start', false)}
           >
-            {runtime.running ? 'Stop runtime' : 'Start runtime'}
+            {pendingCommand === 'Runtime start'
+              ? 'Starting runtime…'
+              : runtime.running
+                ? 'Stop runtime'
+                : 'Start runtime'}
           </button>
           <button
             type="button"
             className={styles.button}
-            disabled={demo}
+            disabled={demo || pendingCommand !== null}
             onClick={() => onAgent(agent.running ? 'stop' : 'start', false)}
           >
-            {agent.running ? 'Stop agent' : 'Start agent'}
+            {pendingCommand === 'Agent start'
+              ? 'Starting agent…'
+              : agent.running
+                ? 'Stop agent'
+                : 'Start agent'}
           </button>
         </div>
         <p className={styles.note}>
@@ -135,10 +144,12 @@ export function Prepare({ snapshot, demo, onGenerate, onRuntime, onAgent }: Prop
         <button
           type="button"
           className={styles.button}
-          disabled={demo || prompt.trim().length === 0}
+          disabled={demo || pendingCommand !== null || prompt.trim().length === 0}
           onClick={() => onGenerate(deck, prompt.trim(), bpm, duration)}
         >
-          Generate onto deck {deck}
+          {pendingCommand === `Generate deck ${deck}`
+            ? `Generating deck ${deck}…`
+            : `Generate onto deck ${deck}`}
         </button>
         <p className={styles.note}>
           Generation runs locally and is slower than playback. It never touches the audio

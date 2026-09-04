@@ -12,6 +12,18 @@ The central rule is simple: **music must not stop**. Model loading, prompt encod
 analysis, network access, and file work never run in the real-time audio callback. The safety deck
 keeps looping if the web app, policy agent, Codex bridge, or MRT2 output disappears.
 
+## The instrument
+
+The Play surface turns six weighted prompts into one continuous musical space. Tap a direction to
+move toward it smoothly; detailed prompt editing lives under Shape, while Codex stays available as
+an optional collaborator outside the audio path.
+
+![Agent DJ prompt-gravity performance surface](assets/screenshots/control-room-desktop.png)
+
+<p align="center">
+  <img src="assets/screenshots/control-room-mobile.png" width="390" alt="Agent DJ mobile direction bank">
+</p>
+
 ## Architecture
 
 ```mermaid

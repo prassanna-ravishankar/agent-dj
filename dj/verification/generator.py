@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
+from dj.config import settings
 from dj.generator.magenta_live import MagentaLiveGenerator
 from dj.generator.magenta_offline import MagentaOfflineGenerator
 from dj.verification.audio import dbfs, longest_silence, run_sc_render
@@ -112,3 +113,46 @@ def verify_generator(backend: str, duration: float = 4.0) -> dict[str, Any]:
     if backend not in {"magenta-offline", "magenta-live"}:
         return {"ok": False, "error": f"unsupported backend: {backend}"}
     return asyncio.run(_verify(backend, duration))
+
+
+def verify_official_mrt2_stream(
+    duration: float = 8.0, keep_render: bool = False
+) -> dict[str, Any]:
+    temporary: tempfile.TemporaryDirectory[str] | None = None
+    if keep_render:
+        directory = settings.sessions_dir / "verification" / "renders"
+        directory.mkdir(parents=True, exist_ok=True)
+    else:
+        temporary = tempfile.TemporaryDirectory(prefix="agent-dj-mrt2-stream-")
+        directory = Path(temporary.name)
+    output = directory / "official-mrt2-stream.wav"
+    try:
+        render = run_sc_render(
+            "render_mrt2_stream.scd",
+            output,
+            duration,
+            {
+                "AGENT_DJ_MRT2_ASSETS": str(settings.mrt2.assets_dir),
+                "AGENT_DJ_MRT2_MODEL": str(settings.mrt2.model_file),
+            },
+            timeout_seconds=max(180, duration + 90),
+        )
+        if not render["ok"]:
+            return {"ok": False, "render": render}
+        report = _validate_wav(output, duration)
+        audio, sample_rate = sf.read(output, always_2d=True, dtype="float32")
+        report.update(
+            {
+                "path": str(output) if keep_render else None,
+                "model": str(settings.mrt2.model_file),
+                "engine": "official-mrt2-supercollider-ugen",
+                "longest_silence_ms": longest_silence(audio, sample_rate),
+                "supercollider_output": render["stdout"],
+            }
+        )
+        report["checks"]["continuous_output"] = report["longest_silence_ms"] < 100
+        report["ok"] = all(report["checks"].values())
+        return report
+    finally:
+        if temporary is not None:
+            temporary.cleanup()

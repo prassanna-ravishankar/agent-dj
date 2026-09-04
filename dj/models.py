@@ -55,6 +55,37 @@ class FutureState(BaseModel):
     estimated_seconds: float = 0.0
 
 
+class StreamPrompt(BaseModel):
+    slot: int
+    text: str = ""
+    weight: float = 0.0
+
+
+class StreamState(BaseModel):
+    available: bool = False
+    enabled: bool = False
+    healthy: bool = False
+    fallback_active: bool = True
+    stream_active: bool = False
+    warming_up: bool = False
+    signal_detected: bool = False
+    phase: str = "disabled"
+    force_fallback: bool = False
+    signal_level: float | None = None
+    mix: float = 0.0
+    temperature: float = 1.0
+    top_k: int = 40
+    prompts: list[StreamPrompt] = Field(
+        default_factory=lambda: [StreamPrompt(slot=slot) for slot in range(6)]
+    )
+
+
+class CodexState(BaseModel):
+    thread_id: str | None = None
+    turn_id: str | None = None
+    turn_status: str = "detached"
+
+
 class DJState(BaseModel):
     session_id: str
     status: str = "development"
@@ -67,5 +98,7 @@ class DJState(BaseModel):
     )
     master: MasterState = Field(default_factory=MasterState)
     future: FutureState = Field(default_factory=FutureState)
+    stream: StreamState = Field(default_factory=StreamState)
+    codex: CodexState = Field(default_factory=CodexState)
     observations: list[dict[str, Any]] = Field(default_factory=list)
     updated_at: datetime = Field(default_factory=utc_now)

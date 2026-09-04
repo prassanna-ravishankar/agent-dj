@@ -21,12 +21,13 @@ import { GestureRow } from './components/GestureRow'
 import { Controls } from './components/Controls'
 import { Chain } from './components/Chain'
 import { Prepare } from './pages/Prepare'
+import { ControlRoom } from './pages/ControlRoom'
 import { ShortcutOverlay } from './components/ShortcutOverlay'
 import styles from './App.module.css'
 
 const client = createLiveClient()
 
-type Route = 'console' | 'prepare'
+type Route = 'console' | 'control' | 'prepare'
 
 function readDemoFlag(): boolean {
   if (typeof window === 'undefined') return __DEMO_DEFAULT__
@@ -300,6 +301,14 @@ export function App() {
         <button
           type="button"
           className={styles.navItem}
+          data-active={route === 'control' ? 'true' : 'false'}
+          onClick={() => setRoute('control')}
+        >
+          Control room
+        </button>
+        <button
+          type="button"
+          className={styles.navItem}
           data-active={route === 'prepare' ? 'true' : 'false'}
           onClick={() => setRoute('prepare')}
         >
@@ -340,6 +349,14 @@ export function App() {
                 action === 'start' ? client.startAgent(testMode) : client.stopAgent(),
               )
             }
+          />
+        ) : route === 'control' ? (
+          <ControlRoom
+            snapshot={snapshot}
+            client={client}
+            demo={snapshot.demo}
+            onRefresh={load}
+            announce={announce}
           />
         ) : (
           <div className={styles.console}>

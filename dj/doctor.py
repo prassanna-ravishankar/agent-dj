@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import platform
 import plistlib
 import shutil
@@ -58,6 +59,13 @@ def inspect_environment() -> dict[str, Any]:
     free = shutil.disk_usage(settings.project_root).free
     magenta_cli = shutil.which("mrt")
     magenta_python = module_available("magenta_rt") or module_available("magentart")
+    mrt2_state = settings.mrt2.model_file.with_name(
+        f"{settings.mrt2.model_file.stem}_state.safetensors"
+    )
+    mrt2_extension_files = [
+        settings.mrt2.extension_dir / name
+        for name in ("MRT2.scx", "MRT2.sc", "mlx.metallib")
+    ]
     report: dict[str, Any] = {
         "ok": False,
         "platform": {
@@ -86,6 +94,18 @@ def inspect_environment() -> dict[str, Any]:
             "models_dir": str(settings.models_dir),
             "small_model": any(settings.models_dir.rglob("*mrt2_small*")),
             "live_backend": "mlx" if magenta_python and platform.machine() == "arm64" else None,
+        },
+        "mrt2_stream": {
+            "model": str(settings.mrt2.model_file),
+            "model_variant": settings.mrt2.model_file.stem,
+            "selection": (
+                "environment" if "AGENT_DJ_MRT2_MODEL" in os.environ
+                else "realtime_safe_default"
+            ),
+            "model_ready": settings.mrt2.model_file.exists() and mrt2_state.exists(),
+            "assets_ready": (settings.mrt2.assets_dir / "musiccoca" / "spm.model").exists(),
+            "extension": str(settings.mrt2.extension_dir),
+            "extension_ready": all(path.exists() for path in mrt2_extension_files),
         },
         "essentia": module_available("essentia"),
         "audio": {

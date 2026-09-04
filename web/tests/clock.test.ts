@@ -28,6 +28,23 @@ function state(overrides: Partial<DJState['transport']>, extra: Partial<DJState>
     // A live runtime writes state often; keep this inside the staleness window.
     updated_at: new Date(NOW - 5_000).toISOString(),
     ...extra,
+    stream: extra.stream ?? {
+      available: false,
+      enabled: false,
+      healthy: false,
+      fallback_active: true,
+      stream_active: false,
+      warming_up: false,
+      signal_detected: false,
+      phase: 'disabled',
+      force_fallback: false,
+      signal_level: null,
+      mix: 0,
+      temperature: 1,
+      top_k: 40,
+      prompts: [],
+    },
+    codex: extra.codex ?? { thread_id: null, turn_id: null, turn_status: 'detached' },
   }
 }
 

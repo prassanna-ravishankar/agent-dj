@@ -257,6 +257,74 @@ def dj_schedule_transition(
 
 
 @mcp.tool()
+def dj_stream_set_prompt(slot: int, direction: str, weight: float = 0.0) -> dict[str, object]:
+    """Cache a musical direction in an MRT2 prompt slot without forcing it on air."""
+    if not 0 <= slot <= 5:
+        raise ValueError("slot must be between 0 and 5")
+    direction = direction.strip()
+    if not direction:
+        raise ValueError("direction must not be empty")
+    if not 0 <= weight <= 1:
+        raise ValueError("weight must be between 0 and 1")
+    snapshot = _combined_state()
+    _require_safe_creative_change(snapshot)
+    result = _command(
+        "stream", "prompt", str(slot), "--text", direction, "--weight", str(weight)
+    )
+    return {"slot": slot, "direction": direction, "weight": weight, "result": result}
+
+
+@mcp.tool()
+def dj_stream_schedule_morph(
+    slot: int,
+    weight: float,
+    morph_bars: float = 8,
+    phrase_bars: Literal[4, 8, 16, 32] = 4,
+) -> dict[str, object]:
+    """Schedule a cached MRT2 prompt weight change at the next phrase boundary."""
+    if not 0 <= slot <= 5:
+        raise ValueError("slot must be between 0 and 5")
+    if not 0 <= weight <= 1:
+        raise ValueError("weight must be between 0 and 1")
+    if not 0.25 <= morph_bars <= 128:
+        raise ValueError("morph_bars must be between 0.25 and 128")
+    snapshot = _combined_state()
+    _require_safe_creative_change(snapshot)
+    runtime = snapshot["runtime"]
+    agent = snapshot["agent"]
+    assert isinstance(runtime, dict) and isinstance(agent, dict)
+    if not runtime.get("running"):
+        raise DJCommandError("morph refused: audio runtime is not running")
+    if not agent.get("running"):
+        raise DJCommandError("morph refused: local scheduler is not running")
+    result = _command(
+        "stream", "schedule", str(slot), "--weight", str(weight),
+        "--at", f"next-{phrase_bars}", "--bars", str(morph_bars),
+    )
+    return {
+        "slot": slot,
+        "weight": weight,
+        "morph_bars": morph_bars,
+        "phrase_bars": phrase_bars,
+        "scheduled": result,
+    }
+
+
+@mcp.tool()
+def dj_stream_control(
+    enabled: bool,
+    force_fallback: bool = False,
+) -> dict[str, object]:
+    """Enable the guarded MRT2 stream or deliberately hold the looping safety deck."""
+    snapshot = _combined_state()
+    if enabled:
+        _require_safe_creative_change(snapshot)
+    fallback = _command("stream", "fallback", str(force_fallback).lower())
+    stream = _command("stream", "start" if enabled else "stop")
+    return {"enabled": enabled, "force_fallback": force_fallback, "fallback": fallback, "stream": stream}
+
+
+@mcp.tool()
 def dj_review_recent_events(limit: int = 20) -> dict[str, object]:
     """Review recent concise operational events without reading private reasoning traces."""
     if not 1 <= limit <= 100:

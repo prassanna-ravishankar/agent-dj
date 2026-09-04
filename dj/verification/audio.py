@@ -129,6 +129,7 @@ def run_sc_render(
     output: Path,
     duration: float,
     extra_env: dict[str, str] | None = None,
+    timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
     sclang = find_executable("sclang")
     if sclang is None:
@@ -141,7 +142,10 @@ def run_sc_render(
     try:
         result = subprocess.run(
             [sclang, str(script)], cwd=settings.project_root, env=env,
-            capture_output=True, text=True, timeout=max(30, duration + 25), check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds or max(30, duration + 25),
+            check=False,
         )
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "SuperCollider render timed out"}
@@ -205,6 +209,62 @@ def verify_continuity(minutes: float) -> dict[str, Any]:
             "peak_dbfs": dbfs(peak),
             "checks": checks,
         }
+
+
+def verify_stream_guard(keep_render: bool = False) -> dict[str, Any]:
+    temporary: tempfile.TemporaryDirectory[str] | None = None
+    if keep_render:
+        directory = settings.sessions_dir / "verification" / "renders"
+        directory.mkdir(parents=True, exist_ok=True)
+    else:
+        temporary = tempfile.TemporaryDirectory(prefix="agent-dj-stream-guard-")
+        directory = Path(temporary.name)
+    output = directory / "stream-guard.wav"
+    try:
+        render = run_sc_render("render_stream_guard.scd", output, 8.2)
+        if not render["ok"]:
+            return render
+        audio, sample_rate = sf.read(output, always_2d=True, dtype="float32")
+        mono = audio.mean(axis=1)
+
+        def dominance(start: float, end: float, wanted: float, other: float) -> float:
+            segment = mono[int(start * sample_rate) : int(end * sample_rate)]
+            return tone_magnitude(segment, sample_rate, wanted) / max(
+                tone_magnitude(segment, sample_rate, other), 1e-9
+            )
+
+        ratios = {
+            "disabled_fallback": dominance(0.15, 0.4, 440, 880),
+            "arming_fallback": dominance(1.5, 2.2, 440, 880),
+            "qualified_stream": dominance(2.75, 3.1, 880, 440),
+            "short_blip_stream": dominance(3.4, 3.65, 880, 440),
+            "failure_fallback": dominance(4.15, 4.45, 440, 880),
+            "recovery_hold_fallback": dominance(5.0, 6.0, 440, 880),
+            "recovered_stream": dominance(6.75, 6.95, 880, 440),
+            "forced_fallback": dominance(7.35, 7.65, 440, 880),
+        }
+        peak = float(np.max(np.abs(audio)))
+        # Ignore the fixed startup latency of the post-master lookahead limiter;
+        # continuity is measured once the audio graph is producing output.
+        silence_ms = longest_silence(audio[int(0.1 * sample_rate) :], sample_rate)
+        checks = {
+            **{name: ratio > 20 for name, ratio in ratios.items()},
+            "finite_samples": bool(np.isfinite(audio).all()),
+            "post_master_no_clipping": peak <= 0.891,
+            "music_did_not_stop": silence_ms < 10,
+        }
+        return {
+            "ok": all(checks.values()),
+            "path": str(output) if keep_render else None,
+            "duration_seconds": len(audio) / sample_rate,
+            "peak_dbfs": dbfs(peak),
+            "longest_silence_ms": silence_ms,
+            "checks": checks,
+            "frequency_ratios": ratios,
+        }
+    finally:
+        if temporary is not None:
+            temporary.cleanup()
 
 
 def verify_mixer(keep_render: bool = False) -> dict[str, Any]:

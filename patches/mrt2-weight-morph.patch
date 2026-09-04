@@ -1,0 +1,31 @@
+diff --git a/examples/sc/MRT2.mm b/examples/sc/MRT2.mm
+index 1014dda..8136d4c 100644
+--- a/examples/sc/MRT2.mm
++++ b/examples/sc/MRT2.mm
+@@ -253,0 +254,16 @@ void MRT2_cmd_prompt_clear(Unit* u, sc_msg_iter* args) {
++void MRT2_cmd_weight(Unit* u, sc_msg_iter* args) {
++    auto* unit = reinterpret_cast<MRT2UGen*>(u);
++    int slot = args->geti();
++    if (slot < 0 || slot >= kNumPromptSlots) {
++        Print("MRT2: weight slot %d out of range [0, %d]\n", slot, kNumPromptSlots - 1);
++        return;
++    }
++    float weight = args->getf();
++    if (weight < 0.0f) weight = 0.0f;
++    if (weight > 1.0f) weight = 1.0f;
++    (*unit->prompt_weight)[slot] = weight;
++    // Prompt embeddings are already cached. Weight-only morphing is atomic
++    // and does not launch another text-encoder job.
++    unit->engine->set_blend_weight(slot, weight);
++}
++
+@@ -361,0 +378 @@ void MRT2_cmd_pcafile(Unit* u, sc_msg_iter* args) {
++    DefineUnitCmd("MRT2UGen", "weight",       MRT2_cmd_weight);
+diff --git a/examples/sc/MRT2.sc b/examples/sc/MRT2.sc
+index 5195601..13ad1eb 100644
+--- a/examples/sc/MRT2.sc
++++ b/examples/sc/MRT2.sc
+@@ -88,0 +89,3 @@ MRT2 {
++    weight { |slot, value|
++        this.sendCmd("weight", slot.asInteger, value.asFloat)
++    }

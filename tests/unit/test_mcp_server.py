@@ -32,6 +32,9 @@ def test_mcp_lists_only_the_agent_sized_tools() -> None:
         "dj_submit_observation",
         "dj_prepare_next",
         "dj_schedule_transition",
+        "dj_stream_set_prompt",
+        "dj_stream_schedule_morph",
+        "dj_stream_control",
         "dj_review_recent_events",
     ]
 
@@ -129,3 +132,38 @@ def test_critical_live_session_without_playing_buffer_refuses_creative_work(
 
     assert asyncio.run(exercise()) is True
     assert commands == []
+
+
+def test_stream_morph_uses_phrase_scheduled_certified_command(monkeypatch) -> None:
+    commands: list[tuple[str, ...]] = []
+
+    def command(*arguments: str, timeout: float = 30.0) -> dict[str, Any]:
+        del timeout
+        if arguments == ("state",):
+            return _state()
+        if arguments == ("status",):
+            return {"ok": True, "running": True, "pid": 10, "local_only": True}
+        if arguments == ("agent", "status"):
+            return {"ok": True, "running": True, "pid": 11, "local_only": True}
+        commands.append(arguments)
+        return {"ok": True}
+
+    monkeypatch.setattr(mcp_server, "_command", command)
+
+    async def exercise() -> dict[str, Any]:
+        async with Client(mcp_server.mcp) as client:
+            result = await client.call_tool(
+                "dj_stream_schedule_morph",
+                {"slot": 2, "weight": 0.75, "morph_bars": 8, "phrase_bars": 16},
+            )
+            assert result.structured_content is not None
+            return result.structured_content
+
+    payload = asyncio.run(exercise())
+    assert payload["slot"] == 2
+    assert commands == [
+        (
+            "stream", "schedule", "2", "--weight", "0.75",
+            "--at", "next-16", "--bars", "8.0",
+        )
+    ]

@@ -49,7 +49,8 @@ export function Decks({
     <section className={styles.decks} aria-label="Decks">
       {(['A', 'B'] as const).map((name) => {
         const deck = decks[name]
-        const live = deck.status === 'playing'
+        const live = onAir === name
+        const displayedStatus = deck.status === 'playing' && !live ? 'prepared' : deck.status
         const incoming = target === name && barsUntilLanding !== null
         return (
           <article
@@ -58,9 +59,9 @@ export function Decks({
             data-state={
               live
                 ? 'on-air'
-                : deck.status === 'preparing'
+                : displayedStatus === 'preparing'
                   ? 'preparing'
-                  : deck.status === 'failed'
+                  : displayedStatus === 'failed'
                     ? 'generation-failed'
                     : 'prepared'
             }
@@ -68,7 +69,7 @@ export function Decks({
             data-focused={focused === name ? 'true' : 'false'}
             tabIndex={0}
             onFocus={() => onFocus(name)}
-            aria-label={`Deck ${name}, ${STATUS_TEXT[deck.status].toLowerCase()}`}
+            aria-label={`Deck ${name}, ${STATUS_TEXT[displayedStatus].toLowerCase()}`}
           >
             {/* Non-colour signal for on air: a solid left edge marker. */}
             <span className={styles.marker} aria-hidden="true" />
@@ -76,8 +77,8 @@ export function Decks({
             <header className={styles.head}>
               <div>
                 <span className={`label ${styles.deckLabel}`}>Deck {name}</span>
-                <p className={styles.status} data-status={deck.status}>
-                  {STATUS_TEXT[deck.status]}
+                <p className={styles.status} data-status={displayedStatus}>
+                  {STATUS_TEXT[displayedStatus]}
                 </p>
               </div>
               <div className={styles.readouts}>

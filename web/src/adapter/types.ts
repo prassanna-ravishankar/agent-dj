@@ -52,6 +52,38 @@ export interface FutureState {
   estimated_seconds: number
 }
 
+/** Continuous MRT2 prompt lane. Weights are normalized by the engine. */
+export interface StreamPrompt {
+  slot: number
+  text: string
+  weight: number
+}
+
+/** dj/models.py StreamState — fallback is the audible safety floor. */
+export interface StreamState {
+  available: boolean
+  enabled: boolean
+  healthy: boolean
+  fallback_active: boolean
+  stream_active: boolean
+  warming_up: boolean
+  signal_detected: boolean
+  phase: string
+  force_fallback: boolean
+  signal_level: number | null
+  mix: number
+  temperature: number
+  top_k: number
+  prompts: StreamPrompt[]
+}
+
+/** dj/models.py CodexState — the thread belongs to this DJ session. */
+export interface CodexState {
+  thread_id: string | null
+  turn_id: string | null
+  turn_status: string
+}
+
 /** dj/observations.py Observation */
 export interface Observation {
   id: string
@@ -72,6 +104,8 @@ export interface DJState {
   decks: Record<DeckName, DeckState>
   master: MasterState
   future: FutureState
+  stream: StreamState
+  codex: CodexState
   observations: Observation[]
   updated_at: string
 }
@@ -82,6 +116,54 @@ export interface ProcessHealth {
   running: boolean
   pid: number | null
   local_only: boolean
+}
+
+/** Project-local Codex bridge health, included in every snapshot. */
+export interface CodexBridgeHealth {
+  ok: boolean
+  running: boolean
+  available: boolean
+  pid: number | null
+  transport_local_only: boolean
+  inference_may_require_network: boolean
+}
+
+/** App-server thread summaries are intentionally tolerant across Codex versions. */
+export interface CodexThreadSummary {
+  id: string
+  preview?: string
+  name?: string
+  model?: string
+  status?: string
+  createdAt?: number | string
+  updatedAt?: number | string
+  [key: string]: unknown
+}
+
+export interface CodexThreadsResponse {
+  data?: CodexThreadSummary[]
+  threads?: CodexThreadSummary[]
+  nextCursor?: string | null
+  [key: string]: unknown
+}
+
+export interface CodexModelSummary {
+  id: string
+  displayName?: string
+  isDefault?: boolean
+  [key: string]: unknown
+}
+
+export interface CodexModelsResponse {
+  data?: CodexModelSummary[]
+  models?: CodexModelSummary[]
+  [key: string]: unknown
+}
+
+export interface CodexThreadResponse {
+  thread?: Record<string, unknown>
+  turn?: Record<string, unknown>
+  [key: string]: unknown
 }
 
 /** dj/policy.py Decision */
@@ -159,6 +241,7 @@ export interface Snapshot {
   state: DJState
   runtime: ProcessHealth
   agent: ProcessHealth
+  codex_bridge: CodexBridgeHealth
   events: EventRecord[]
   decisions: Decision[]
   schedules: ScheduleItem[]

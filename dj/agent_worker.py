@@ -202,6 +202,21 @@ class AgentWorker:
                     duration_seconds=seconds, observation_driven=True,
                     observation_id=item["parameters"].get("observation_id"),
                 )
+            elif item["action"] == "stream-weight":
+                slot = int(item["target"])
+                weight = float(item["parameters"]["weight"])
+                bars = float(item["parameters"].get("bars", 8))
+                seconds = Transport(state.transport.bpm).bars_to_seconds(bars)
+                previous = state.stream.prompts[slot].weight
+                state.stream.prompts[slot].weight = weight
+                self.store.save(state)
+                if RuntimeController().status()["running"]:
+                    SuperColliderMixer().stream_weight(slot, weight, seconds)
+                events.append(
+                    "stream_weight_morphed", slot=slot, from_weight=previous,
+                    to_weight=weight, duration_bars=bars,
+                    duration_seconds=seconds, scheduled=True,
+                )
             events.append(
                 "schedule_executed",
                 schedule_id=item["id"],

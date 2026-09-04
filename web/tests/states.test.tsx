@@ -61,6 +61,23 @@ describe('clock uncertain', () => {
 })
 
 describe('critical states carry data-state and a non-colour signal', () => {
+  it('never labels a stale playing deck on air while the runtime is stopped', () => {
+    const { snap } = view('live-safe')
+    snap.runtime.running = false
+    snap.state.transport.playing = false
+    const v = selectView(snap, NOW)
+
+    render(
+      <Decks decks={snap.state.decks} onAir={v.onAir} pending={v.pending}
+        seamProgress={v.seamProgress} barsUntilLanding={v.barsUntilLanding}
+        focused="A" onFocus={() => {}} />,
+    )
+
+    expect(v.onAir).toBeNull()
+    expect(screen.queryByText('ON AIR')).toBeNull()
+    expect(screen.getAllByText('PREPARED')).toHaveLength(2)
+  })
+
   it('every scenario renders its state attribute', () => {
     for (const scenario of SCENARIOS) {
       const { v, snap } = view(scenario.id)

@@ -14,6 +14,7 @@ from rich.table import Table
 
 from dj.agent import AgentController
 from dj.analysis.local import LocalAnalyzer
+from dj.codex_client import CodexAppServer
 from dj.doctor import inspect_environment
 from dj.generator.magenta_live import MagentaLiveGenerator
 from dj.mixer.supercollider import SuperColliderMixer
@@ -24,17 +25,27 @@ from dj.scheduler import ScheduleStore, resolve_bar
 from dj.scripted import ScriptedDJ
 from dj.session import SessionStore
 from dj.transport import Transport
-from dj.verification.audio import verify_continuity, verify_mixer, verify_timing
+from dj.verification.audio import (
+    verify_continuity,
+    verify_mixer,
+    verify_stream_guard,
+    verify_timing,
+)
 from dj.verification.dual_deck import verify_dual_deck
+from dj.verification.failures import verify_failure_matrix
 from dj.verification.feedback import verify_feedback_reaction
-from dj.verification.generator import verify_generator
+from dj.verification.generator import verify_generator, verify_official_mrt2_stream
 from dj.verification.session import verify_scripted_audio, verify_session
 
 app = typer.Typer(no_args_is_help=True, help="Local-first autonomous DJ control plane.")
 verify_app = typer.Typer(no_args_is_help=True, help="Machine-verifiable subsystem checks.")
 agent_app = typer.Typer(no_args_is_help=True, help="Local observation-to-music agent.")
+stream_app = typer.Typer(no_args_is_help=True, help="Continuous local MRT2 stream controls.")
+codex_app = typer.Typer(no_args_is_help=True, help="Project-local Codex thread controls.")
 app.add_typer(verify_app, name="verify")
 app.add_typer(agent_app, name="agent")
+app.add_typer(stream_app, name="stream")
+app.add_typer(codex_app, name="codex")
 console = Console()
 
 
@@ -117,6 +128,29 @@ def verify_continuity_command(
         raise typer.Exit(1)
 
 
+@verify_app.command("stream-guard")
+def verify_stream_guard_command(
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON."),
+    keep_render: bool = typer.Option(False, "--keep-render", help="Keep the rendered WAV."),
+) -> None:
+    """Prove stream qualification, failure fallback, recovery, and post-master continuity."""
+    result = {"check": "stream-guard", **verify_stream_guard(keep_render=keep_render)}
+    emit(result, json_output)
+    if not result["ok"]:
+        raise typer.Exit(1)
+
+
+@verify_app.command("failures")
+def verify_failures_command(
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON."),
+) -> None:
+    """Prove UI, agent, generator, and model failures cannot stop fallback audio."""
+    result = {"check": "failures", **verify_failure_matrix()}
+    emit(result, json_output)
+    if not result["ok"]:
+        raise typer.Exit(1)
+
+
 @verify_app.command("generator")
 def verify_generator_command(
     backend: str = typer.Option("magenta-offline", "--backend"),
@@ -125,6 +159,22 @@ def verify_generator_command(
 ) -> None:
     """Generate and numerically validate real local MRT2 audio."""
     result = {"check": "generator", **verify_generator(backend, duration)}
+    emit(result, json_output)
+    if not result["ok"]:
+        raise typer.Exit(1)
+
+
+@verify_app.command("mrt2-stream")
+def verify_mrt2_stream_command(
+    duration: float = typer.Option(8.0, "--duration", min=2.0, max=120.0),
+    json_output: bool = typer.Option(False, "--json"),
+    keep_render: bool = typer.Option(False, "--keep-render"),
+) -> None:
+    """Render and validate the official continuous MRT2 SuperCollider UGen."""
+    result = {
+        "check": "mrt2-stream",
+        **verify_official_mrt2_stream(duration=duration, keep_render=keep_render),
+    }
     emit(result, json_output)
     if not result["ok"]:
         raise typer.Exit(1)
@@ -279,6 +329,340 @@ def agent_stop(json_output: bool = typer.Option(False, "--json")) -> None:
 @agent_app.command("status")
 def agent_status(json_output: bool = typer.Option(False, "--json")) -> None:
     emit(AgentController().status(), json_output)
+
+
+@stream_app.command("status")
+def stream_status(json_output: bool = typer.Option(False, "--json")) -> None:
+    """Inspect configured intent and live stream/fallback health."""
+    store = SessionStore()
+    state = store.load()
+    live = RuntimeController(store).status()["stream"]
+    store.events().append("stream_inspected")
+    emit({"ok": True, "configured": state.stream.model_dump(), "live": live}, json_output)
+
+
+@stream_app.command("start")
+def stream_start(json_output: bool = typer.Option(False, "--json")) -> None:
+    """Request MRT2 on air; the guard waits for healthy signal before leaving fallback."""
+    store = SessionStore()
+    state = store.load()
+    state.stream.enabled = True
+    state.stream.force_fallback = False
+    store.save(state)
+    runtime = RuntimeController(store).status()
+    if runtime["running"]:
+        mixer = SuperColliderMixer()
+        mixer.stream_force_fallback(False)
+        mixer.stream_enable(True)
+    event = store.events().append("stream_enabled", guarded=True)
+    emit({"ok": True, "event": event, "stream": state.stream.model_dump()}, json_output)
+
+
+@stream_app.command("stop")
+def stream_stop(json_output: bool = typer.Option(False, "--json")) -> None:
+    """Return to the looping safety deck without stopping the MRT2 generator."""
+    store = SessionStore()
+    state = store.load()
+    state.stream.enabled = False
+    store.save(state)
+    if RuntimeController(store).status()["running"]:
+        SuperColliderMixer().stream_enable(False)
+    event = store.events().append("stream_disabled", fallback_continues=True)
+    emit({"ok": True, "event": event, "stream": state.stream.model_dump()}, json_output)
+
+
+@stream_app.command("prompt")
+def stream_prompt(
+    slot: int = typer.Argument(..., min=0, max=5),
+    text: str = typer.Option(..., "--text"),
+    weight: float = typer.Option(1.0, "--weight", min=0, max=1),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Encode a prompt into one of six reusable morph slots."""
+    if not text.strip():
+        raise typer.BadParameter("prompt text must not be empty")
+    store = SessionStore()
+    state = store.load()
+    prompt = state.stream.prompts[slot]
+    prompt.text = text.strip()
+    prompt.weight = weight
+    store.save(state)
+    if RuntimeController(store).status()["running"]:
+        SuperColliderMixer().stream_prompt(slot, prompt.text, weight)
+    event = store.events().append(
+        "stream_prompt_changed", slot=slot, prompt=prompt.text, weight=weight
+    )
+    emit({"ok": True, "event": event, "prompt": prompt.model_dump()}, json_output)
+
+
+@stream_app.command("weight")
+def stream_weight(
+    slot: int = typer.Argument(..., min=0, max=5),
+    weight: float = typer.Argument(..., min=0, max=1),
+    seconds: float = typer.Option(0.0, "--seconds", min=0, max=600),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Morph a cached prompt weight without re-running the text encoder."""
+    store = SessionStore()
+    state = store.load()
+    prompt = state.stream.prompts[slot]
+    if not prompt.text:
+        raise typer.BadParameter(f"stream prompt slot {slot} is empty")
+    previous = prompt.weight
+    prompt.weight = weight
+    store.save(state)
+    if RuntimeController(store).status()["running"]:
+        SuperColliderMixer().stream_weight(slot, weight, seconds)
+    event = store.events().append(
+        "stream_weight_morphed", slot=slot, from_weight=previous,
+        to_weight=weight, duration_seconds=seconds,
+    )
+    emit({"ok": True, "event": event, "prompt": prompt.model_dump()}, json_output)
+
+
+@stream_app.command("clear")
+def stream_clear(
+    slot: int = typer.Argument(..., min=0, max=5),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    store = SessionStore()
+    state = store.load()
+    state.stream.prompts[slot].text = ""
+    state.stream.prompts[slot].weight = 0.0
+    store.save(state)
+    if RuntimeController(store).status()["running"]:
+        SuperColliderMixer().stream_clear(slot)
+    event = store.events().append("stream_prompt_cleared", slot=slot)
+    emit({"ok": True, "event": event}, json_output)
+
+
+@stream_app.command("fallback")
+def stream_fallback(
+    enabled: bool = typer.Argument(...),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Force or release the looping safety deck."""
+    store = SessionStore()
+    state = store.load()
+    state.stream.force_fallback = enabled
+    store.save(state)
+    if RuntimeController(store).status()["running"]:
+        SuperColliderMixer().stream_force_fallback(enabled)
+    event = store.events().append("stream_fallback_forced", enabled=enabled)
+    emit({"ok": True, "event": event}, json_output)
+
+
+@stream_app.command("settings")
+def stream_settings(
+    temperature: float = typer.Option(1.0, "--temperature", min=0.1, max=4),
+    top_k: int = typer.Option(40, "--top-k", min=1, max=2048),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    store = SessionStore()
+    state = store.load()
+    state.stream.temperature = temperature
+    state.stream.top_k = top_k
+    store.save(state)
+    if RuntimeController(store).status()["running"]:
+        mixer = SuperColliderMixer()
+        mixer.stream_temperature(temperature)
+        mixer.stream_top_k(top_k)
+    event = store.events().append(
+        "stream_settings_changed", temperature=temperature, top_k=top_k
+    )
+    emit({"ok": True, "event": event, "stream": state.stream.model_dump()}, json_output)
+
+
+@stream_app.command("schedule")
+def stream_schedule(
+    slot: int = typer.Argument(..., min=0, max=5),
+    weight: float = typer.Option(..., "--weight", min=0, max=1),
+    at: str = typer.Option("next-16", "--at"),
+    bars: float = typer.Option(8, "--bars", min=0.25, max=128),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Schedule a cached prompt to morph at a musical boundary."""
+    store = SessionStore()
+    state = store.load()
+    if not state.stream.prompts[slot].text:
+        raise typer.BadParameter(f"stream prompt slot {slot} is empty")
+    at_bar = resolve_bar(at, state)
+    item = ScheduleStore(store.root / state.session_id / "schedules.jsonl").append(
+        "stream-weight", str(slot), at_bar, weight=weight, bars=bars
+    )
+    store.events().append("stream_morph_scheduled", **item)
+    state.future.covered_until_bar = max(state.future.covered_until_bar, at_bar + round(bars))
+    store.save(state)
+    emit({"ok": True, "schedule": item}, json_output)
+
+
+@codex_app.command("status")
+def codex_status(json_output: bool = typer.Option(False, "--json")) -> None:
+    store = SessionStore()
+    state = store.load()
+    bridge = CodexAppServer().status()
+    store.events().append("codex_inspected", bridge_running=bridge["running"])
+    emit({"ok": True, "bridge": bridge, "session": state.codex.model_dump()}, json_output)
+
+
+@codex_app.command("start")
+def codex_start(json_output: bool = typer.Option(False, "--json")) -> None:
+    store = SessionStore()
+    result = CodexAppServer().start()
+    event = store.events().append("codex_bridge_started", pid=result.get("pid"))
+    emit({"ok": True, "bridge": result, "event": event}, json_output)
+
+
+@codex_app.command("stop")
+def codex_stop(json_output: bool = typer.Option(False, "--json")) -> None:
+    """Stop the web-facing Codex bridge without affecting audio."""
+    store = SessionStore()
+    result = CodexAppServer().stop()
+    event = store.events().append("codex_bridge_stopped", audio_unaffected=True)
+    emit({"ok": True, "bridge": result, "event": event}, json_output)
+
+
+@codex_app.command("threads")
+def codex_threads(
+    limit: int = typer.Option(20, "--limit", min=1, max=100),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    store = SessionStore()
+    result = CodexAppServer().threads(limit)
+    store.events().append("codex_threads_listed", returned=len(result.get("data", [])))
+    emit({"ok": True, **result}, json_output)
+
+
+@codex_app.command("models")
+def codex_models(json_output: bool = typer.Option(False, "--json")) -> None:
+    store = SessionStore()
+    result = CodexAppServer().models()
+    store.events().append("codex_models_listed", returned=len(result.get("data", [])))
+    emit({"ok": True, **result}, json_output)
+
+
+@codex_app.command("new")
+def codex_new(
+    prompt: str | None = typer.Option(None, "--prompt"),
+    model: str | None = typer.Option(None, "--model"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    store = SessionStore()
+    client = CodexAppServer()
+    started = client.new_thread(model)
+    thread = started["thread"]
+    thread_id = str(thread["id"])
+    turn: dict[str, object] | None = None
+    state = store.load()
+    state.codex.thread_id = thread_id
+    state.codex.turn_id = None
+    state.codex.turn_status = "idle"
+    if prompt and prompt.strip():
+        turn_result = client.turn(thread_id, prompt.strip())
+        turn = turn_result["turn"]
+        state.codex.turn_id = str(turn["id"])
+        state.codex.turn_status = str(turn["status"])
+    store.save(state)
+    event = store.events().append(
+        "codex_thread_started", thread_id=thread_id,
+        turn_id=state.codex.turn_id, prompt_submitted=turn is not None,
+    )
+    emit({"ok": True, "thread": thread, "turn": turn, "event": event}, json_output)
+
+
+@codex_app.command("resume")
+def codex_resume(
+    thread_id: str,
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    store = SessionStore()
+    result = CodexAppServer().resume(thread_id)
+    state = store.load()
+    state.codex.thread_id = thread_id
+    state.codex.turn_id = None
+    state.codex.turn_status = "idle"
+    store.save(state)
+    event = store.events().append("codex_thread_resumed", thread_id=thread_id)
+    emit({"ok": True, **result, "event": event}, json_output)
+
+
+@codex_app.command("send")
+def codex_send(
+    prompt: str = typer.Option(..., "--prompt"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    if not prompt.strip():
+        raise typer.BadParameter("prompt must not be empty")
+    store = SessionStore()
+    state = store.load()
+    if state.codex.thread_id is None:
+        raise typer.BadParameter("no Codex thread is attached; run `dj codex new` first")
+    result = CodexAppServer().turn(state.codex.thread_id, prompt.strip())
+    turn = result["turn"]
+    state.codex.turn_id = str(turn["id"])
+    state.codex.turn_status = str(turn["status"])
+    store.save(state)
+    event = store.events().append(
+        "codex_turn_started", thread_id=state.codex.thread_id,
+        turn_id=state.codex.turn_id,
+    )
+    emit({"ok": True, "turn": turn, "event": event}, json_output)
+
+
+@codex_app.command("steer")
+def codex_steer(
+    prompt: str = typer.Option(..., "--prompt"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Add direction to the currently running Codex turn."""
+    if not prompt.strip():
+        raise typer.BadParameter("prompt must not be empty")
+    store = SessionStore()
+    state = store.load()
+    if state.codex.thread_id is None or state.codex.turn_id is None:
+        raise typer.BadParameter("no active Codex turn is attached")
+    result = CodexAppServer().steer(
+        state.codex.thread_id, state.codex.turn_id, prompt.strip()
+    )
+    event = store.events().append(
+        "codex_turn_steered", thread_id=state.codex.thread_id,
+        turn_id=state.codex.turn_id,
+    )
+    emit({"ok": True, **result, "event": event}, json_output)
+
+
+@codex_app.command("inspect")
+def codex_inspect(json_output: bool = typer.Option(False, "--json")) -> None:
+    store = SessionStore()
+    state = store.load()
+    if state.codex.thread_id is None:
+        raise typer.BadParameter("no Codex thread is attached")
+    result = CodexAppServer().read(state.codex.thread_id)
+    thread = result.get("thread", {})
+    turns = thread.get("turns", []) if isinstance(thread, dict) else []
+    if turns:
+        latest = turns[-1]
+        state.codex.turn_id = latest.get("id")
+        state.codex.turn_status = str(latest.get("status", "unknown"))
+        store.save(state)
+    store.events().append("codex_thread_inspected", thread_id=state.codex.thread_id)
+    emit({"ok": True, **result}, json_output)
+
+
+@codex_app.command("interrupt")
+def codex_interrupt(json_output: bool = typer.Option(False, "--json")) -> None:
+    store = SessionStore()
+    state = store.load()
+    if state.codex.thread_id is None or state.codex.turn_id is None:
+        raise typer.BadParameter("no active Codex turn is attached")
+    result = CodexAppServer().interrupt(state.codex.thread_id, state.codex.turn_id)
+    state.codex.turn_status = "interrupted"
+    store.save(state)
+    event = store.events().append(
+        "codex_turn_interrupted", thread_id=state.codex.thread_id,
+        turn_id=state.codex.turn_id,
+    )
+    emit({"ok": True, **result, "event": event}, json_output)
 
 
 @app.command()

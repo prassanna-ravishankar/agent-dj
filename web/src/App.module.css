@@ -28,6 +28,7 @@
   gap: var(--hairline);
   background: var(--line);
   border-bottom: var(--hairline) solid var(--line);
+  overflow-x: auto;
 }
 
 .brand {
@@ -50,6 +51,7 @@
 }
 
 .navItem {
+  flex: 0 0 auto;
   padding: var(--space-2) var(--space-4);
   background: var(--ground-sunken);
   font-size: var(--size-xs);

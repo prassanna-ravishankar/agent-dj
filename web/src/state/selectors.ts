@@ -32,10 +32,13 @@ export function selectView(snapshot: Snapshot, now: number = Date.now()): View {
   const flying = inFlight(chain)
   const pending = flying.length > 0 ? (flying[0] ?? null) : null
 
-  const onAir =
-    (Object.values(snapshot.state.decks).find((d) => d.status === 'playing')?.name as
-      | DeckName
-      | undefined) ?? null
+  // A persisted deck can still say `playing` after the runtime has stopped. Playback truth
+  // requires all three signals; never turn stale session state into an "on air" claim.
+  const onAir = snapshot.runtime.running && snapshot.state.transport.playing
+    ? ((Object.values(snapshot.state.decks).find((d) => d.status === 'playing')?.name as
+        | DeckName
+        | undefined) ?? null)
+    : null
 
   let barsUntilLanding: number | null = null
   let seamProgress: number | null = null

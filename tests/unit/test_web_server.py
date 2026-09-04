@@ -86,3 +86,64 @@ def test_command_endpoints_translate_to_certified_cli_without_real_io(
     assert [call.args[0] for call in run_dj.await_args_list] == [
         "generate", "play", "crossfade", "gain", "filter", "record", "feedback"
     ]
+
+
+def test_stream_endpoints_translate_to_certified_cli(tmp_path, monkeypatch) -> None:
+    sessions = tmp_path / "sessions"
+    monkeypatch.setattr(settings, "sessions_dir", sessions)
+    SessionStore(sessions).create("web-test")
+    run_dj = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr(web_server, "_run_dj", run_dj)
+
+    with TestClient(app) as client:
+        assert client.post(
+            "/api/stream/prompt",
+            json={"slot": 2, "text": "patient drums", "weight": 0.5},
+        ).status_code == 204
+        assert client.post(
+            "/api/stream/schedule",
+            json={"slot": 2, "weight": 0.9, "phrase_bars": 16, "morph_bars": 8},
+        ).status_code == 204
+        assert client.post(
+            "/api/stream/control", json={"enabled": True, "force_fallback": False}
+        ).status_code == 204
+
+    calls = [call.args for call in run_dj.await_args_list]
+    assert calls[0] == (
+        "stream", "prompt", "2", "--text", "patient drums", "--weight", "0.5"
+    )
+    assert calls[1] == (
+        "stream", "schedule", "2", "--weight", "0.9",
+        "--at", "next-16", "--bars", "8.0",
+    )
+    assert calls[2] == ("stream", "fallback", "false")
+    assert calls[3] == ("stream", "start")
+
+
+def test_codex_endpoints_include_lifecycle_and_steering(tmp_path, monkeypatch) -> None:
+    sessions = tmp_path / "sessions"
+    monkeypatch.setattr(settings, "sessions_dir", sessions)
+    SessionStore(sessions).create("web-test")
+    run_dj = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr(web_server, "_run_dj", run_dj)
+
+    with TestClient(app) as client:
+        assert client.post("/api/codex/start").status_code == 200
+        assert client.get("/api/codex/models").status_code == 200
+        assert client.post(
+            "/api/codex/thread", json={"prompt": "Build safely", "model": "gpt-test"}
+        ).status_code == 200
+        assert client.post(
+            "/api/codex/steer", json={"prompt": "Preserve the fallback"}
+        ).status_code == 200
+        assert client.post("/api/codex/interrupt").status_code == 200
+        assert client.post("/api/codex/stop").status_code == 200
+
+    assert [call.args for call in run_dj.await_args_list] == [
+        ("codex", "start"),
+        ("codex", "models"),
+        ("codex", "new", "--prompt", "Build safely", "--model", "gpt-test"),
+        ("codex", "steer", "--prompt", "Preserve the fallback"),
+        ("codex", "interrupt"),
+        ("codex", "stop"),
+    ]

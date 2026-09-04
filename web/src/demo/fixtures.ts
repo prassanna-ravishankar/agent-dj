@@ -95,6 +95,27 @@ function baseState(now: number, bpm = 124): DJState {
     },
     master: { peak_dbfs: null, lufs_short: null, limiter_reduction_db: 0 },
     future: { covered_until_bar: 192, estimated_seconds: SAFE_SENTINEL_SECONDS },
+    stream: {
+      available: true,
+      enabled: true,
+      healthy: true,
+      fallback_active: false,
+      stream_active: true,
+      warming_up: false,
+      signal_detected: true,
+      phase: 'stream',
+      force_fallback: false,
+      signal_level: 0.18,
+      mix: 1,
+      temperature: 1,
+      top_k: 40,
+      prompts: [
+        { slot: 0, text: 'warm groovy house, percussion-forward, patient', weight: 0.72 },
+        { slot: 1, text: 'rubbery bass, clipped drums, dry room', weight: 0.28 },
+        ...Array.from({ length: 4 }, (_, index) => ({ slot: index + 2, text: '', weight: 0 })),
+      ],
+    },
+    codex: { thread_id: '019-demo-agent-dj', turn_id: null, turn_status: 'idle' },
     observations: [],
     updated_at: iso(now - 400),
   }
@@ -340,6 +361,7 @@ export function buildScenario(id: ScenarioId, now: number = Date.now()): Snapsho
     case 'agent-absent':
       addCompleted()
       agent = health(false, null)
+      if (state.stream.prompts[1]) state.stream.prompts[1].weight = 0.4
       events.push({
         ts: iso(now - 60_000),
         type: 'error',
@@ -446,7 +468,23 @@ export function buildScenario(id: ScenarioId, now: number = Date.now()): Snapsho
   state.observations = observations
   events.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
 
-  return { state, runtime, agent, events, decisions, schedules, demo: true }
+  return {
+    state,
+    runtime,
+    agent,
+    codex_bridge: {
+      ok: true,
+      running: true,
+      available: true,
+      pid: 48223,
+      transport_local_only: true,
+      inference_may_require_network: true,
+    },
+    events,
+    decisions,
+    schedules,
+    demo: true,
+  }
 }
 
 export function isRecording(events: EventRecord[]): boolean {

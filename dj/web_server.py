@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from dj.agent import AgentController
+from dj.codex_client import CodexAppServer, CodexError
 from dj.config import settings
 from dj.doctor import inspect_environment
 from dj.models import DeckName
@@ -58,6 +59,8 @@ def _snapshot() -> dict[str, object]:
         "state": state.model_dump(mode="json"),
         "runtime": RuntimeController(store).status(),
         "agent": AgentController().status(),
+        "codex_bridge": CodexAppServer().status(),
+        "codex_events": _read_jsonl(store.root / ".codex-bridge-events.jsonl"),
         "events": _read_jsonl(session_dir / "events.jsonl"),
         "decisions": _read_jsonl(session_dir / "decisions.jsonl", inner="decision"),
         "schedules": _read_jsonl(session_dir / "schedules.jsonl"),
@@ -162,6 +165,48 @@ class FeedbackRequest(BaseModel):
     kind: FeedbackKind
 
 
+class StreamPromptRequest(BaseModel):
+    slot: int = Field(ge=0, le=5)
+    text: str = Field(min_length=1, max_length=1000)
+    weight: float = Field(ge=0, le=1)
+
+
+class StreamWeightRequest(BaseModel):
+    slot: int = Field(ge=0, le=5)
+    weight: float = Field(ge=0, le=1)
+    seconds: float = Field(default=0, ge=0, le=600)
+
+
+class StreamScheduleRequest(BaseModel):
+    slot: int = Field(ge=0, le=5)
+    weight: float = Field(ge=0, le=1)
+    phrase_bars: Literal[4, 8, 16, 32] = 4
+    morph_bars: float = Field(default=8, ge=0.25, le=128)
+
+
+class StreamControlRequest(BaseModel):
+    enabled: bool
+    force_fallback: bool = False
+
+
+class StreamSettingsRequest(BaseModel):
+    temperature: float = Field(ge=0.1, le=4)
+    top_k: int = Field(ge=1, le=2048)
+
+
+class CodexThreadRequest(BaseModel):
+    prompt: str | None = Field(default=None, max_length=8000)
+    model: str | None = Field(default=None, max_length=100)
+
+
+class CodexResumeRequest(BaseModel):
+    thread_id: str = Field(min_length=1, max_length=200)
+
+
+class CodexTurnRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=8000)
+
+
 @app.get("/api/snapshot")
 async def snapshot() -> dict[str, object]:
     return _snapshot()
@@ -245,6 +290,105 @@ async def feedback(request: FeedbackRequest) -> Response:
     return await _no_content("feedback", request.kind.value)
 
 
+@app.post("/api/stream/prompt", status_code=204)
+async def stream_prompt(request: StreamPromptRequest) -> Response:
+    return await _no_content(
+        "stream", "prompt", str(request.slot), "--text", request.text,
+        "--weight", str(request.weight),
+    )
+
+
+@app.post("/api/stream/weight", status_code=204)
+async def stream_weight(request: StreamWeightRequest) -> Response:
+    return await _no_content(
+        "stream", "weight", str(request.slot), str(request.weight),
+        "--seconds", str(request.seconds),
+    )
+
+
+@app.post("/api/stream/schedule", status_code=204)
+async def stream_schedule(request: StreamScheduleRequest) -> Response:
+    return await _no_content(
+        "stream", "schedule", str(request.slot), "--weight", str(request.weight),
+        "--at", f"next-{request.phrase_bars}", "--bars", str(request.morph_bars),
+    )
+
+
+@app.post("/api/stream/control", status_code=204)
+async def stream_control(request: StreamControlRequest) -> Response:
+    await _run_dj("stream", "fallback", str(request.force_fallback).lower())
+    return await _no_content("stream", "start" if request.enabled else "stop")
+
+
+@app.post("/api/stream/settings", status_code=204)
+async def stream_settings(request: StreamSettingsRequest) -> Response:
+    return await _no_content(
+        "stream", "settings", "--temperature", str(request.temperature),
+        "--top-k", str(request.top_k),
+    )
+
+
+@app.post("/api/codex/start")
+async def codex_start() -> dict[str, object]:
+    return await _run_dj("codex", "start")
+
+
+@app.post("/api/codex/stop")
+async def codex_stop() -> dict[str, object]:
+    return await _run_dj("codex", "stop")
+
+
+@app.get("/api/codex/threads")
+async def codex_threads() -> dict[str, object]:
+    return await _run_dj("codex", "threads", "--limit", "30")
+
+
+@app.get("/api/codex/models")
+async def codex_models() -> dict[str, object]:
+    return await _run_dj("codex", "models")
+
+
+@app.post("/api/codex/thread")
+async def codex_new(request: CodexThreadRequest) -> dict[str, object]:
+    args = ["codex", "new"]
+    if request.prompt:
+        args.extend(("--prompt", request.prompt))
+    if request.model:
+        args.extend(("--model", request.model))
+    return await _run_dj(*args, timeout=60)
+
+
+@app.post("/api/codex/resume")
+async def codex_resume(request: CodexResumeRequest) -> dict[str, object]:
+    return await _run_dj("codex", "resume", request.thread_id, timeout=60)
+
+
+@app.post("/api/codex/turn")
+async def codex_turn(request: CodexTurnRequest) -> dict[str, object]:
+    return await _run_dj("codex", "send", "--prompt", request.prompt, timeout=60)
+
+
+@app.post("/api/codex/steer")
+async def codex_steer(request: CodexTurnRequest) -> dict[str, object]:
+    return await _run_dj("codex", "steer", "--prompt", request.prompt, timeout=60)
+
+
+@app.get("/api/codex/thread")
+async def codex_read() -> dict[str, object]:
+    _, state = _load_state()
+    if state.codex.thread_id is None:
+        raise HTTPException(status_code=409, detail="no Codex thread is attached")
+    try:
+        return await asyncio.to_thread(CodexAppServer().read, state.codex.thread_id)
+    except CodexError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/codex/interrupt")
+async def codex_interrupt() -> dict[str, object]:
+    return await _run_dj("codex", "interrupt")
+
+
 def _change_signature() -> tuple[tuple[str, int, int], ...]:
     store = SessionStore()
     current = store.current_id()
@@ -254,6 +398,7 @@ def _change_signature() -> tuple[tuple[str, int, int], ...]:
         paths.extend(root / name for name in (
             "state.json", "events.jsonl", "decisions.jsonl", "schedules.jsonl"
         ))
+    paths.append(store.root / ".codex-bridge-events.jsonl")
     signature = []
     for path in paths:
         try:

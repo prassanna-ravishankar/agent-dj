@@ -14,6 +14,10 @@
 
 import type {
   AdapterError,
+  CodexBridgeHealth,
+  CodexModelsResponse,
+  CodexThreadResponse,
+  CodexThreadsResponse,
   DeckName,
   DoctorReport,
   FeedbackKind,
@@ -48,6 +52,26 @@ export interface DJClient {
   filter(deck: DeckName, kind: FilterKind, frequencyHz: number): Promise<Result<void>>
   record(action: 'start' | 'stop'): Promise<Result<void>>
   feedback(kind: FeedbackKind): Promise<Result<void>>
+  streamPrompt(slot: number, text: string, weight: number): Promise<Result<void>>
+  streamWeight(slot: number, weight: number, seconds: number): Promise<Result<void>>
+  streamSchedule(
+    slot: number,
+    weight: number,
+    phraseBars: 4 | 8 | 16 | 32,
+    morphBars: number,
+  ): Promise<Result<void>>
+  streamControl(enabled: boolean, forceFallback: boolean): Promise<Result<void>>
+  streamSettings(temperature: number, topK: number): Promise<Result<void>>
+  startCodex(): Promise<Result<{ bridge: CodexBridgeHealth }>>
+  stopCodex(): Promise<Result<{ bridge: CodexBridgeHealth }>>
+  codexThreads(): Promise<Result<CodexThreadsResponse>>
+  codexModels(): Promise<Result<CodexModelsResponse>>
+  newCodexThread(prompt?: string, model?: string): Promise<Result<CodexThreadResponse>>
+  resumeCodexThread(threadId: string): Promise<Result<CodexThreadResponse>>
+  readCodexThread(): Promise<Result<CodexThreadResponse>>
+  sendCodexTurn(prompt: string): Promise<Result<CodexThreadResponse>>
+  steerCodexTurn(prompt: string): Promise<Result<CodexThreadResponse>>
+  interruptCodexTurn(): Promise<Result<CodexThreadResponse>>
   /** Server-sent events for state changes. Returns an unsubscribe function. */
   subscribe(onChange: () => void): () => void
 }
@@ -130,6 +154,35 @@ export function createLiveClient(): DJClient {
       post<void>('/filter', { deck, kind, frequency_hz: frequencyHz }),
     record: (action) => post<void>('/record', { action }),
     feedback: (kind) => post<void>('/feedback', { kind }),
+    streamPrompt: (slot, text, weight) =>
+      post<void>('/stream/prompt', { slot, text, weight }),
+    streamWeight: (slot, weight, seconds) =>
+      post<void>('/stream/weight', { slot, weight, seconds }),
+    streamSchedule: (slot, weight, phraseBars, morphBars) =>
+      post<void>('/stream/schedule', {
+        slot,
+        weight,
+        phrase_bars: phraseBars,
+        morph_bars: morphBars,
+      }),
+    streamControl: (enabled, forceFallback) =>
+      post<void>('/stream/control', { enabled, force_fallback: forceFallback }),
+    streamSettings: (temperature, topK) =>
+      post<void>('/stream/settings', { temperature, top_k: topK }),
+    startCodex: () => post<{ bridge: CodexBridgeHealth }>('/codex/start', undefined, TIMEOUT_MS.process),
+    stopCodex: () => post<{ bridge: CodexBridgeHealth }>('/codex/stop'),
+    codexThreads: () => request<CodexThreadsResponse>('/codex/threads', undefined, TIMEOUT_MS.process),
+    codexModels: () => request<CodexModelsResponse>('/codex/models', undefined, TIMEOUT_MS.process),
+    newCodexThread: (prompt, model) =>
+      post<CodexThreadResponse>('/codex/thread', { prompt, model }, TIMEOUT_MS.process),
+    resumeCodexThread: (threadId) =>
+      post<CodexThreadResponse>('/codex/resume', { thread_id: threadId }, TIMEOUT_MS.process),
+    readCodexThread: () => request<CodexThreadResponse>('/codex/thread', undefined, TIMEOUT_MS.process),
+    sendCodexTurn: (prompt) =>
+      post<CodexThreadResponse>('/codex/turn', { prompt }, TIMEOUT_MS.process),
+    steerCodexTurn: (prompt) =>
+      post<CodexThreadResponse>('/codex/steer', { prompt }, TIMEOUT_MS.process),
+    interruptCodexTurn: () => post<CodexThreadResponse>('/codex/interrupt'),
     subscribe: (onChange) => {
       if (typeof EventSource === 'undefined') return () => {}
       let source: EventSource | null = null

@@ -50,10 +50,30 @@ class SuperColliderMixer(MixerBackend):
             "/agent-dj/record", [action, str(path.resolve()) if path is not None else ""]
         )
 
+    def stream_prompt(self, slot: int, text: str, weight: float) -> None:
+        self.client.send_message("/agent-dj/stream/prompt", [slot, text, weight])
+
+    def stream_weight(self, slot: int, weight: float, seconds: float = 0.0) -> None:
+        self.client.send_message("/agent-dj/stream/weight", [slot, weight, seconds])
+
+    def stream_clear(self, slot: int) -> None:
+        self.client.send_message("/agent-dj/stream/clear", [slot])
+
+    def stream_enable(self, enabled: bool) -> None:
+        self.client.send_message("/agent-dj/stream/enable", [int(enabled)])
+
+    def stream_force_fallback(self, enabled: bool) -> None:
+        self.client.send_message("/agent-dj/stream/fallback", [int(enabled)])
+
+    def stream_temperature(self, value: float) -> None:
+        self.client.send_message("/agent-dj/stream/temperature", [value])
+
+    def stream_top_k(self, value: int) -> None:
+        self.client.send_message("/agent-dj/stream/topk", [value])
+
     def status(self) -> dict[str, Any]:
         ready = settings.sessions_dir / ".runtime-ready"
         return {"ok": ready.exists(), "backend": "supercollider", "port": self.port}
 
     def quit(self) -> None:
         self.client.send_message("/agent-dj/quit", [])
-

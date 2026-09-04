@@ -1,0 +1,211 @@
+.field {
+  position: relative;
+  min-height: clamp(20rem, 45vh, 34rem);
+  flex: 1 1 24rem;
+  overflow: hidden;
+  border: var(--hairline) solid var(--line);
+  background: var(--ground-sunken);
+}
+
+.field::before,
+.field::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  border: var(--hairline) solid var(--line);
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.field::before {
+  width: min(58vw, 38rem);
+  aspect-ratio: 1;
+}
+
+.field::after {
+  width: min(31vw, 20rem);
+  aspect-ratio: 1;
+  border-style: dashed;
+}
+
+.legend {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-4);
+  left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.legend span,
+.nodeKey,
+.nodeWeight {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.legend span {
+  color: var(--ink-muted);
+}
+
+.legend small {
+  color: var(--ink-faint);
+  font-size: var(--size-xs);
+}
+
+.focus {
+  position: absolute;
+  z-index: 1;
+  top: var(--field-y);
+  left: var(--field-x);
+  width: 8rem;
+  height: 8rem;
+  border: var(--hairline) solid var(--amber-dim);
+  border-radius: 50%;
+  background: var(--amber-glow);
+  box-shadow: 0 0 4rem var(--amber-glow);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: top var(--dur-settle) var(--ease), left var(--dur-settle) var(--ease);
+}
+
+.node {
+  position: absolute;
+  z-index: 2;
+  top: var(--field-y);
+  left: var(--field-x);
+  display: grid;
+  width: clamp(8rem, 15vw, 13rem);
+  min-height: 5.5rem;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--line-strong);
+  background: var(--ground-raised);
+  color: var(--ink);
+  text-align: left;
+  transform: translate(-50%, -50%) scale(calc(0.94 + var(--field-weight) * 0.06));
+  transition: border-color var(--dur-swap) var(--ease), transform var(--dur-settle) var(--ease);
+}
+
+.node:hover:not(:disabled),
+.node:focus-visible {
+  border-color: var(--amber);
+  transform: translate(-50%, -50%) scale(1.02);
+}
+
+.node:disabled {
+  cursor: not-allowed;
+}
+
+.node[data-empty='true'] {
+  border-style: dashed;
+  color: var(--ink-faint);
+  opacity: 0.55;
+}
+
+.node[data-active='true'] {
+  border-color: var(--amber-dim);
+}
+
+.nodeKey {
+  color: var(--amber);
+}
+
+.nodeText {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--size-sm);
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.nodeWeight {
+  grid-column: 2;
+  color: var(--ink-muted);
+  letter-spacing: normal;
+}
+
+.centre {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 5rem;
+  height: 5rem;
+  align-items: center;
+  justify-content: center;
+  border: var(--hairline) solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--ground);
+  flex-direction: column;
+  transform: translate(-50%, -50%);
+}
+
+.centre span {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--size-lg);
+}
+
+.centre small {
+  color: var(--ink-muted);
+  font-size: var(--size-xs);
+}
+
+@media (max-width: 700px) {
+  .field {
+    display: grid;
+    min-height: 18rem;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--hairline);
+    padding-top: 4.5rem;
+    background: var(--line);
+  }
+
+  .field::before,
+  .field::after,
+  .focus,
+  .centre {
+    display: none;
+  }
+
+  .legend {
+    right: var(--space-4);
+  }
+
+  .node {
+    position: static;
+    width: auto;
+    min-height: 4.5rem;
+    padding: var(--space-3);
+    border: 0;
+    background: var(--ground-sunken);
+    transform: none;
+  }
+
+  .node:hover:not(:disabled),
+  .node:focus-visible {
+    border: 0;
+    background: var(--ground-raised);
+    transform: none;
+  }
+
+  .node[data-active='true'] {
+    background: var(--amber-wash);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus,
+  .node {
+    transition: none;
+  }
+}

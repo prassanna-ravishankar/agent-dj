@@ -34,7 +34,7 @@ function HealthBlock({
     >
       <span className={styles.mark} aria-hidden="true" />
       <span className={`label ${styles.blockLabel}`}>{name}</span>
-      <span className={styles.blockValue}>{health.running ? 'running' : 'absent'}</span>
+      <span className={styles.blockValue}>{health.running ? 'running' : 'stopped'}</span>
     </div>
   )
 }

@@ -19,6 +19,7 @@
 }
 
 .statusLine h1,
+.performanceHead h2,
 .sectionHead h2,
 .threadBrowser h3,
 .transcript h3 {
@@ -28,7 +29,7 @@
 }
 
 .statusLine h1 {
-  font-size: var(--size-xl);
+  font-size: clamp(var(--size-xl), 3vw, var(--size-2xl));
   letter-spacing: var(--track-tight);
 }
 
@@ -118,22 +119,104 @@
 }
 
 .workbench {
-  display: grid;
+  display: flex;
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-columns: minmax(0, 1.55fr) minmax(21rem, 0.75fr);
+  flex-direction: column;
+}
+
+.roomSwitch {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: var(--hairline) solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
+  background: var(--line);
   gap: var(--hairline);
 }
 
-.mobileSwitch {
-  display: none;
+.roomSwitch button {
+  min-height: 2.75rem;
+  background: var(--ground-sunken);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.roomSwitch button[data-active='true'] {
+  background: var(--ground-raised);
+  color: var(--amber);
+}
+
+.roomSwitch button:hover:not([data-active='true']) {
+  color: var(--ink);
 }
 
 .streamDesk,
-.codexDesk {
+.codexDesk,
+.performance {
   min-width: 0;
   overflow-y: auto;
   background: var(--ground-sunken);
+}
+
+.performance {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-5);
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.performanceHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.performanceHead h2 {
+  margin: 0;
+  font-size: var(--size-xl);
+}
+
+.performanceHead p {
+  max-width: 58ch;
+  margin: var(--space-1) 0 0;
+  color: var(--ink-muted);
+  font-size: var(--size-sm);
+  line-height: 1.5;
+}
+
+.performanceFoot {
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 1fr) auto;
+  align-items: end;
+  gap: var(--space-5);
+}
+
+.performanceFoot p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--size-xs);
+  line-height: 1.5;
+}
+
+.morphTime {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.morphTime > span:first-child {
+  color: var(--ink-muted);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
 }
 
 .sectionHead {
@@ -627,43 +710,15 @@
     flex: 1 1 0;
   }
 
-  .workbench {
-    display: flex;
-    min-height: auto;
-    flex-direction: column;
-  }
-
-  .mobileSwitch {
-    display: grid;
+  .roomSwitch {
     position: sticky;
     top: 0;
     z-index: 2;
-    grid-template-columns: 1fr 1fr;
-    background: var(--line);
-    gap: var(--hairline);
-  }
-
-  .mobileSwitch button {
-    min-height: 2.75rem;
-    background: var(--ground-sunken);
-    color: var(--ink-muted);
-    font-size: var(--size-xs);
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
-  }
-
-  .mobileSwitch button[data-active='true'] {
-    background: var(--ground-raised);
-    color: var(--ink);
-  }
-
-  .workbench[data-mobile-panel='engine'] .codexDesk,
-  .workbench[data-mobile-panel='codex'] .streamDesk {
-    display: none;
   }
 
   .streamDesk,
-  .codexDesk {
+  .codexDesk,
+  .performance {
     overflow: visible;
   }
 }
@@ -671,6 +726,7 @@
 @media (max-width: 620px) {
   .statusLine,
   .sectionHead,
+  .performance,
   .lane,
   .utility,
   .threadStatus,
@@ -683,6 +739,21 @@
   }
 
   .sectionHead {
+    flex-direction: column;
+  }
+
+  .statusLine {
+    gap: var(--space-3);
+  }
+
+  .statusLine p {
+    display: none;
+  }
+
+  .performanceHead,
+  .performanceFoot {
+    display: flex;
+    align-items: stretch;
     flex-direction: column;
   }
 
@@ -700,9 +771,7 @@
   }
 
   .audibleTruth > div:first-child {
-    min-width: 0;
-    grid-column: 1 / -1;
-    border-bottom: var(--hairline) solid var(--line);
+    display: none;
   }
 
   .audibleTruth > div:nth-child(2) {

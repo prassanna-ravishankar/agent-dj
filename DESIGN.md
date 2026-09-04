@@ -57,7 +57,7 @@ The design is mostly defined by what it will not show.
 
 | Refusal | Why | Where |
 |---|---|---|
-| No fake audio visualisation | No audio reaches the browser. A waveform would be decoration pretending to be a measurement | absent throughout |
+| No fake audio visualisation | No audio reaches the browser. A waveform would be decoration pretending to be a measurement; prompt gravity may visualise real lane weights, never imply audio amplitude | absent throughout; `MorphField` |
 | `86_400` never renders as a duration | It is a sentinel for *indefinite* because JSON cannot hold infinity | `coverage.ts`, renders **SAFE** |
 | Null loudness never renders as `0` | Metering is specified but not wired into state | `SegmentReadout`, ghost cells |
 | Energy never described as measured | It is agent-maintained intent via `energy_delta` | labelled `ENERGY (INTENT)` |
@@ -132,6 +132,17 @@ Two structural facts the surface makes visible:
   disruptive takes 4. The system is more patient when asked to keep going — consistent with
   `SOUL.md`: "If something works, allow it to work."
 
+### Control Room — a personal instrument
+
+The Control Room is composed as an instrument, not a SaaS settings page. **Play** is the default
+performance surface, **Shape** holds precise prompt and scheduling controls, and **Codex** remains
+a clearly subordinate project collaborator outside the audio path. Do not flatten the three into
+co-equal dashboard columns or lead with configuration.
+
+Prompt gravity is a control map, not an audio visualiser: node emphasis and the field centroid are
+calculated from the lane weights the performer is controlling. It must never become a decorative
+waveform, spectrum, or other claim about audio the browser does not receive.
+
 ## 7. Language
 
 **Palette — one light source.** Warm near-black ground (`#0E0D0C`, brown-leaning, never blue)
@@ -166,6 +177,9 @@ emptiness.
 am I safe, did my gesture land* with zero scrolling: bar and SAFE first, on-air deck, incoming
 transition, then a 2×3 thumb grid of gestures. Filter and master metering are demoted; the
 horizon band survives but its ruler and travelling ticks are dropped as unreadable at that size.
+In the Control Room, the desktop prompt constellation likewise becomes a 2×3 tactile direction
+bank: preserve the same weighted choices, but remove the centroid rings and spatial geometry that
+do not survive at thumb scale.
 
 **Keyboard throughout** — `1`–`6` feedback, `A`/`B` deck focus, `Space` play, `C` crossfade,
 `R` record (confirmed), `/` chain, `?` reference. Visible focus rings, logical tab order, ARIA

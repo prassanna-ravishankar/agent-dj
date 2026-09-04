@@ -14,9 +14,11 @@ import type {
   Result,
   Snapshot,
 } from '../adapter/types'
+import { MorphField } from '../components/MorphField'
 import styles from './ControlRoom.module.css'
 
 type PhraseBars = 4 | 8 | 16 | 32
+type RoomView = 'play' | 'shape' | 'codex'
 
 interface Props {
   snapshot: Snapshot
@@ -114,7 +116,7 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState('')
   const [creatingThread, setCreatingThread] = useState(false)
-  const [mobilePanel, setMobilePanel] = useState<'engine' | 'codex'>('engine')
+  const [roomView, setRoomView] = useState<RoomView>('play')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -151,6 +153,7 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
       const message = `${result.error.message}${result.error.detail ? ` ${result.error.detail}` : ''}`
       setError(message)
       announce(`${label} failed.`)
+      await onRefresh()
       return null
     }
     announce(`${label} accepted.`)
@@ -187,20 +190,28 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
   }, [client, codex.thread_id, codex.turn_status, demo, snapshot.codex_bridge.running])
 
   const transcript = useMemo(() => extractTranscript(threadDetail), [threadDetail])
+  const runtimeRunning = snapshot.runtime.running
+  const startupDeck = snapshot.state.decks.A
+  const hasPreparedFallback = ['prepared', 'playing'].includes(startupDeck.status)
+    && Boolean(startupDeck.audio_path)
   const activeTurn = Boolean(
     codex.turn_id &&
       !['completed', 'interrupted', 'failed', 'cancelled', 'idle', 'detached'].includes(
         codex.turn_status,
       ),
   )
-  const audibleLabel = stream.fallback_active
+  const audibleLabel = !runtimeRunning
+    ? 'Nothing — runtime stopped'
+    : stream.fallback_active
     ? stream.force_fallback
       ? 'Fallback locked'
       : 'Fallback protecting output'
     : stream.healthy
       ? 'MRT2 on air'
       : 'Source indeterminate'
-  const audibleState = stream.fallback_active
+  const audibleState = !runtimeRunning
+    ? 'stopped'
+    : stream.fallback_active
     ? 'fallback'
     : stream.healthy
       ? 'live'
@@ -235,12 +246,38 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
     if (value) setPrompt('')
   }
 
+  const startPerformance = async () => run('Start performance', async (): Promise<Result<void>> => {
+    // Start the guaranteed deck first. MRT2 is requested only after audio is alive, and its
+    // independent guard keeps the fallback audible until signal qualification succeeds.
+    const started = await client.startRuntime(false)
+    if (!started.ok) return started
+    if (!stream.available) return { ok: true, value: undefined }
+    return client.streamControl(true, false)
+  })
+
+  const focusLane = async (slot: number) => {
+    const lane = stream.prompts.find((item) => item.slot === slot)
+    if (!lane?.text.trim()) return
+    await run(`Lean into ${lane.text}`, async (): Promise<Result<void>> => {
+      for (const promptLane of stream.prompts) {
+        if (!promptLane.text.trim()) continue
+        const result = await client.streamWeight(
+          promptLane.slot,
+          promptLane.slot === slot ? 1 : 0,
+          morphSeconds,
+        )
+        if (!result.ok) return result
+      }
+      return { ok: true, value: undefined }
+    }, () => setDirtyWeights(new Set()))
+  }
+
   return (
     <div className={styles.room}>
       <header className={styles.statusLine}>
         <div>
-          <h1>Control room</h1>
-          <p>Shape the continuous local stream and direct its coding agent from one desk.</p>
+          <h1>{audibleLabel}</h1>
+          <p>{runtimeRunning ? 'The safety deck remains underneath every move.' : 'Start the local performance when you are ready to hear sound.'}</p>
         </div>
         <dl className={styles.audibleTruth} aria-label="Audible source status">
           <div>
@@ -267,27 +304,101 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
         </div>
       ) : null}
 
-      <nav className={styles.mobileSwitch} aria-label="Control room sections">
+      <nav className={styles.roomSwitch} aria-label="Control room sections">
         <button
           type="button"
-          data-active={mobilePanel === 'engine'}
-          aria-pressed={mobilePanel === 'engine'}
-          onClick={() => setMobilePanel('engine')}
+          data-active={roomView === 'play'}
+          aria-pressed={roomView === 'play'}
+          onClick={() => setRoomView('play')}
         >
-          Engine
+          Play
         </button>
         <button
           type="button"
-          data-active={mobilePanel === 'codex'}
-          aria-pressed={mobilePanel === 'codex'}
-          onClick={() => setMobilePanel('codex')}
+          data-active={roomView === 'shape'}
+          aria-pressed={roomView === 'shape'}
+          onClick={() => setRoomView('shape')}
+        >
+          Shape
+        </button>
+        <button
+          type="button"
+          data-active={roomView === 'codex'}
+          aria-pressed={roomView === 'codex'}
+          onClick={() => setRoomView('codex')}
         >
           Codex
         </button>
       </nav>
 
-      <div className={styles.workbench} data-mobile-panel={mobilePanel}>
-        <section className={styles.streamDesk} aria-labelledby="stream-heading">
+      <div className={styles.workbench}>
+        {roomView === 'play' ? (
+          <main className={styles.performance} aria-labelledby="performance-heading">
+            <div className={styles.performanceHead}>
+              <div>
+                <h2 id="performance-heading">Move through the continuous sound</h2>
+                <p>Each touch eases MRT2 toward one prompt. Nothing is cut or regenerated.</p>
+              </div>
+              <div className={styles.engineActions}>
+                {runtimeRunning ? (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      disabled={demo || busy !== null || !stream.enabled}
+                      aria-pressed={stream.force_fallback}
+                      onClick={() => void run(stream.force_fallback ? 'Release fallback' : 'Lock fallback', () => client.streamControl(stream.enabled, !stream.force_fallback))}
+                    >
+                      {stream.force_fallback ? 'Return to stream' : 'Hold safety loop'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      disabled={demo || busy !== null || !stream.available}
+                      onClick={() => void run(stream.enabled ? 'Stop stream' : 'Start stream', () => client.streamControl(!stream.enabled, false))}
+                    >
+                      {stream.enabled ? 'Stop MRT2' : 'Start MRT2'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    disabled={demo || busy !== null || !hasPreparedFallback}
+                    onClick={() => void startPerformance()}
+                  >
+                    {busy === 'Start performance' ? 'Starting audio…' : 'Start performance'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!stream.available ? <p className={styles.absent}>MRT2 is unavailable; the safety loop can still play.</p> : null}
+            {!runtimeRunning && !hasPreparedFallback ? <p className={styles.absent}>Prepare safety deck A in Pre-set before starting audio.</p> : null}
+
+            <MorphField
+              prompts={stream.prompts}
+              draftWeights={weights}
+              disabled={demo || !runtimeRunning || !stream.enabled}
+              busy={busy !== null}
+              onFocus={(slot) => void focusLane(slot)}
+            />
+
+            <div className={styles.performanceFoot}>
+              <label className={styles.morphTime}>
+                <span>Movement time</span>
+                <span className={styles.numberInput}>
+                  <input className="mono" type="number" min={0} max={600} step={1} value={morphSeconds} onChange={(event) => setMorphSeconds(Number(event.target.value))} />
+                  <span>sec</span>
+                </span>
+              </label>
+              <p>{busy ? busy : stream.enabled ? 'Choose a direction. The blend will travel there without stopping.' : 'The prompt field wakes when the continuous stream is running.'}</p>
+              <button type="button" className={styles.secondaryButton} onClick={() => setRoomView('shape')}>Edit directions</button>
+            </div>
+          </main>
+        ) : null}
+
+        {roomView === 'shape' ? <section className={styles.streamDesk} aria-labelledby="stream-heading">
           <div className={styles.sectionHead}>
             <div>
               <h2 id="stream-heading">Continuous engine</h2>
@@ -300,7 +411,7 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
               <button
                 type="button"
                 className={styles.secondaryButton}
-                disabled={demo || busy !== null || !stream.enabled}
+                disabled={demo || busy !== null || !runtimeRunning || !stream.enabled}
                 aria-pressed={stream.force_fallback}
                 onClick={() =>
                   void run(stream.force_fallback ? 'Release fallback' : 'Lock fallback', () =>
@@ -310,22 +421,33 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
               >
                 {stream.force_fallback ? 'Release fallback' : 'Lock fallback'}
               </button>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                disabled={demo || busy !== null || !stream.available}
-                onClick={() =>
-                  void run(stream.enabled ? 'Stop stream' : 'Start stream', () =>
-                    client.streamControl(!stream.enabled, false),
-                  )
-                }
-              >
-                {busy === 'Start stream'
-                  ? 'Starting…'
-                  : stream.enabled
-                    ? 'Stop stream'
-                    : 'Start stream'}
-              </button>
+              {runtimeRunning ? (
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  disabled={demo || busy !== null || !stream.available}
+                  onClick={() =>
+                    void run(stream.enabled ? 'Stop stream' : 'Start stream', () =>
+                      client.streamControl(!stream.enabled, false),
+                    )
+                  }
+                >
+                  {busy === 'Start stream'
+                    ? 'Starting…'
+                    : stream.enabled
+                      ? 'Stop stream'
+                      : 'Start stream'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  disabled={demo || busy !== null || !hasPreparedFallback}
+                  onClick={() => void startPerformance()}
+                >
+                  {busy === 'Start performance' ? 'Starting audio…' : 'Start performance'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -333,6 +455,12 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
             <p className={styles.absent} role="status">
               MRT2 is not installed. The fallback deck remains available; install the local engine
               before starting the stream.
+            </p>
+          ) : null}
+
+          {!runtimeRunning && !hasPreparedFallback ? (
+            <p className={styles.absent} role="status">
+              Prepare safety deck A in Pre-set before starting audio.
             </p>
           ) : null}
 
@@ -405,7 +533,7 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
                   <button
                     type="button"
                     aria-label={`Morph lane ${lane.slot + 1} now`}
-                    disabled={demo || busy !== null || !stream.enabled}
+                    disabled={demo || busy !== null || !runtimeRunning || !stream.enabled}
                     onClick={() => void run(
                       `Morph lane ${lane.slot + 1}`,
                       () => client.streamWeight(lane.slot, weights[index] ?? 0, morphSeconds),
@@ -468,13 +596,26 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
                   <input type="number" min={0.25} max={128} step={0.25} value={morphBars} onChange={(event) => setMorphBars(Number(event.target.value))} />
                 </label>
               </div>
-              <button
-                type="button"
-                disabled={demo || busy !== null}
-                onClick={() => void run('Schedule stream morph', () => client.streamSchedule(scheduleSlot, scheduleWeight, phraseBars, morphBars))}
-              >
-                Schedule musical intent
-              </button>
+              {snapshot.agent.running ? (
+                <button
+                  type="button"
+                  disabled={demo || busy !== null || !runtimeRunning}
+                  onClick={() => void run('Schedule stream morph', () => client.streamSchedule(scheduleSlot, scheduleWeight, phraseBars, morphBars))}
+                >
+                  Schedule musical intent
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={demo || busy !== null || !runtimeRunning}
+                  onClick={() => void run('Start scheduling agent', () => client.startAgent(false))}
+                >
+                  Start phrase scheduling
+                </button>
+              )}
+              {!snapshot.agent.running ? (
+                <p>The local scheduling agent is stopped. Starting it does not touch audio.</p>
+              ) : null}
             </fieldset>
 
             <fieldset className={styles.utility}>
@@ -525,9 +666,9 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
               </button>
             </fieldset>
           </div>
-        </section>
+        </section> : null}
 
-        <aside className={styles.codexDesk} aria-labelledby="codex-heading">
+        {roomView === 'codex' ? <aside className={styles.codexDesk} aria-labelledby="codex-heading">
           <div className={styles.sectionHead}>
             <div>
               <h2 id="codex-heading">Codex thread</h2>
@@ -535,7 +676,7 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
             </div>
             <div className={styles.bridgeMeta}>
               <span className={styles.processState} data-running={snapshot.codex_bridge.running}>
-                {snapshot.codex_bridge.running ? 'Bridge ready' : 'Bridge absent'}
+                {snapshot.codex_bridge.running ? 'Bridge ready' : 'Bridge stopped'}
               </span>
               {snapshot.codex_bridge.running ? (
                 <button
@@ -733,7 +874,7 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
               </form>
             </>
           )}
-        </aside>
+        </aside> : null}
       </div>
     </div>
   )

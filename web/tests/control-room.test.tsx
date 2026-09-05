@@ -14,6 +14,7 @@ describe('control room', () => {
     expect(screen.getByRole('heading', { name: 'MRT2 on air' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Move through the continuous sound' })).toBeVisible()
     expect(screen.getByRole('button', { name: /^Lean into prompt 1:/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Prepare next deck' })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Shape' }))
     expect(screen.getByRole('heading', { name: 'Continuous engine' })).toBeVisible()

@@ -159,15 +159,13 @@ def dj_submit_observation(
 
 @mcp.tool()
 def dj_prepare_next(
-    direction: str,
+    direction: str | None = None,
     duration_bars: int = 32,
-    target_deck: Literal["A", "B"] | None = None,
     bpm: float | None = None,
 ) -> dict[str, object]:
-    """Generate and validate phrase-sized material onto the off-air deck without transitioning."""
-    direction = direction.strip()
-    if not direction:
-        raise ValueError("direction must not be empty")
+    """Trigger one local off-air preparation job; does not start an agent or transition."""
+    if direction is not None and not direction.strip():
+        raise ValueError("direction must not be blank")
     if not 4 <= duration_bars <= 128:
         raise ValueError("duration_bars must be between 4 and 128")
     snapshot = _combined_state()
@@ -182,34 +180,18 @@ def dj_prepare_next(
     duration_seconds = duration_bars * 4 * 60 / resolved_bpm
     if duration_seconds > 600:
         raise ValueError("requested bars exceed the 600-second generation ceiling at this BPM")
-    deck = _target_deck(snapshot, target_deck)
-    generation = _command(
-        "generate",
-        deck,
-        "--prompt",
-        direction,
-        "--bpm",
-        str(resolved_bpm),
-        "--duration",
-        str(duration_seconds),
-        timeout=660,
-    )
-    try:
-        analysis: dict[str, object] | None = _command("analyse", deck, timeout=120)
-        validation = "analysed"
-    except DJCommandError as exc:
-        analysis = {"warning": str(exc)}
-        validation = "generation succeeded; analysis unavailable"
+    args = ["agent", "prepare-next", "--duration", str(duration_seconds)]
+    if direction:
+        args.extend(("--direction", direction.strip()))
+    if bpm is not None:
+        args.extend(("--bpm", str(resolved_bpm)))
+    prepared = _command(*args, timeout=660)
     return {
-        "prepared_deck": deck,
-        "direction": direction,
+        **prepared,
         "duration_bars": duration_bars,
-        "duration_seconds": duration_seconds,
         "bpm": resolved_bpm,
-        "generation": generation,
-        "analysis": analysis,
-        "validation": validation,
-        "transitioned": False,
+        "agent_started": False,
+        "watching": False,
     }
 
 

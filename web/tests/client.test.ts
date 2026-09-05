@@ -19,24 +19,32 @@ describe('control-room adapter', () => {
     vi.stubGlobal('fetch', fetchMock)
     const client = createLiveClient()
 
+    await client.prepareNext('modern Indian house', 64)
     await client.streamSchedule(2, 0.65, 16, 8)
     await client.sendCodexTurn('inspect the stream guard')
     await client.steerCodexTurn('keep the fallback latched')
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
+      '/api/agent/prepare-next',
+      expect.objectContaining({
+        body: JSON.stringify({ direction: 'modern Indian house', duration: 64 }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
       '/api/stream/schedule',
       expect.objectContaining({
         body: JSON.stringify({ slot: 2, weight: 0.65, phrase_bars: 16, morph_bars: 8 }),
       }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+      3,
       '/api/codex/turn',
       expect.objectContaining({ body: JSON.stringify({ prompt: 'inspect the stream guard' }) }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       '/api/codex/steer',
       expect.objectContaining({ body: JSON.stringify({ prompt: 'keep the fallback latched' }) }),
     )

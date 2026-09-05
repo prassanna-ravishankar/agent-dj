@@ -67,6 +67,7 @@ Every response is JSON. Non-2xx is treated as a command rejection; `409` maps to
 | `POST` | `/api/runtime/stop` | — | `ProcessHealth` | `dj stop --json` |
 | `POST` | `/api/agent/start` | `{test_mode: bool}` | `ProcessHealth` | `dj agent start --json` |
 | `POST` | `/api/agent/stop` | — | `ProcessHealth` | `dj agent stop --json` |
+| `POST` | `/api/agent/prepare-next` | `{direction?: string, duration: number}` | one-shot preparation result | `dj agent prepare-next ... --json` |
 | `POST` | `/api/generate` | `{deck, prompt, bpm, duration}` | `204` | `dj generate <deck> --prompt … --bpm … --duration …` |
 | `POST` | `/api/play` | `{deck}` | `204` | `dj play <deck> --json` |
 | `POST` | `/api/crossfade` | `{target, bars}` | `204` | `dj crossfade <target> --bars <n> --json` |

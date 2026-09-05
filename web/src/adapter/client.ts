@@ -45,6 +45,7 @@ export interface DJClient {
   stopRuntime(): Promise<Result<ProcessHealth>>
   startAgent(testMode: boolean): Promise<Result<ProcessHealth>>
   stopAgent(): Promise<Result<ProcessHealth>>
+  prepareNext(direction?: string, duration?: number): Promise<Result<Record<string, unknown>>>
   generate(deck: DeckName, prompt: string, bpm: number, duration: number): Promise<Result<void>>
   play(deck: DeckName): Promise<Result<void>>
   crossfade(target: DeckName, bars: number): Promise<Result<void>>
@@ -145,6 +146,12 @@ export function createLiveClient(): DJClient {
     startAgent: (testMode) =>
       post<ProcessHealth>('/agent/start', { test_mode: testMode }, TIMEOUT_MS.process),
     stopAgent: () => post<ProcessHealth>('/agent/stop'),
+    prepareNext: (direction, duration = 64) =>
+      post<Record<string, unknown>>(
+        '/agent/prepare-next',
+        { direction, duration },
+        TIMEOUT_MS.generation,
+      ),
     generate: (deck, prompt, bpm, duration) =>
       post<void>('/generate', { deck, prompt, bpm, duration }, TIMEOUT_MS.generation),
     play: (deck) => post<void>('/play', { deck }),

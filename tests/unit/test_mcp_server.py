@@ -80,9 +80,12 @@ def test_prepare_next_uses_the_off_air_deck_and_certified_cli(monkeypatch) -> No
         if arguments == ("agent", "status"):
             return {"ok": True, "running": True, "pid": 11, "local_only": True}
         commands.append(arguments)
-        if arguments[0] == "analyse":
-            return {"duration_seconds": 64.0, "peak_dbfs": -1.0}
-        return {"ok": True}
+        return {
+            "ok": True,
+            "prepared_deck": "B",
+            "agent_started": False,
+            "watching": False,
+        }
 
     monkeypatch.setattr(mcp_server, "_command", command)
 
@@ -97,8 +100,14 @@ def test_prepare_next_uses_the_off_air_deck_and_certified_cli(monkeypatch) -> No
 
     payload = asyncio.run(exercise())
     assert payload["prepared_deck"] == "B"
-    assert commands[0][:2] == ("generate", "B")
-    assert commands[1] == ("analyse", "B")
+    assert commands == [
+        (
+            "agent", "prepare-next", "--duration", "64.0",
+            "--direction", "patient percussion",
+        )
+    ]
+    assert payload["agent_started"] is False
+    assert payload["watching"] is False
 
 
 def test_critical_live_session_without_playing_buffer_refuses_creative_work(

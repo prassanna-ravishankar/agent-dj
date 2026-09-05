@@ -201,6 +201,20 @@ Future mic, camera, MIDI, and sensor adapters should submit observations through
 they must not control the audio callback directly. Observations are disposable. The audio runtime
 and safety coverage are authoritative.
 
+### Triggered next-deck preparation
+
+Use `uv run dj agent prepare-next --json` when the user asks to keep a fresh off-air deck ready.
+This is a one-shot local job: it derives a coherent variation from the playing deck, generates and
+analyses it, verifies the target is still off-air, loads it as prepared, and exits. It does not start
+the policy agent, watch state, transition, or call a hosted model. An explicit direction is optional:
+
+```bash
+uv run dj agent prepare-next --direction "modern Indian house fusion, crisp percussion" --duration 64 --json
+```
+
+Never describe the keeper as autonomous playback. It only prepares. A separate explicit `play`,
+`crossfade`, or schedule command is required to make the result audible.
+
 ## Web, MCP, and coding-agent boundaries
 
 - `uv run dj web --port 8765 --json` serves the loopback-only control room. Closing it must not

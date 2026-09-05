@@ -370,6 +370,15 @@ export function ControlRoom({ snapshot, client, demo, onRefresh, announce }: Pro
                     {busy === 'Start performance' ? 'Starting audio…' : 'Start performance'}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  disabled={demo || busy !== null}
+                  aria-label="Prepare next deck"
+                  onClick={() => void run('Prepare next deck', () => client.prepareNext())}
+                >
+                  {busy === 'Prepare next deck' ? 'Preparing locally…' : 'Prepare next'}
+                </button>
               </div>
             </div>
 

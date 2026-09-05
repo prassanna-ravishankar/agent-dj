@@ -120,6 +120,27 @@ def test_stream_endpoints_translate_to_certified_cli(tmp_path, monkeypatch) -> N
     assert calls[3] == ("stream", "start")
 
 
+def test_prepare_next_is_a_one_shot_cli_trigger(tmp_path, monkeypatch) -> None:
+    sessions = tmp_path / "sessions"
+    monkeypatch.setattr(settings, "sessions_dir", sessions)
+    SessionStore(sessions).create("web-test")
+    run_dj = AsyncMock(return_value={"ok": True, "agent_started": False, "watching": False})
+    monkeypatch.setattr(web_server, "_run_dj", run_dj)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/prepare-next",
+            json={"direction": "modern Indian house", "duration": 64},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["agent_started"] is False
+    assert run_dj.await_args.args == (
+        "agent", "prepare-next", "--duration", "64.0",
+        "--direction", "modern Indian house",
+    )
+
+
 def test_codex_endpoints_include_lifecycle_and_steering(tmp_path, monkeypatch) -> None:
     sessions = tmp_path / "sessions"
     monkeypatch.setattr(settings, "sessions_dir", sessions)

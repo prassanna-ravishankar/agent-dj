@@ -118,6 +118,16 @@ removes MRT2 from the mix without stopping the audio runtime. Manual and future 
 enter through the source-neutral feedback boundary (`love`, `dislike`, `more-energy`,
 `less-energy`, `boring`, or `weird`).
 
+Prepare one coherent variation onto whichever deck is off-air with a single local trigger:
+
+```bash
+uv run dj agent prepare-next --json
+```
+
+The triggered keeper generates, analyses, and prepares one deck, then exits. It never watches in
+the background, starts the agent/runtime, spends hosted-model tokens, or transitions automatically.
+Pass `--direction "..."` when you want to override its deterministic continuation.
+
 ## Browser control room
 
 The standalone web app controls runtime safety, continuous prompt lanes, phrase-scheduled morphs,

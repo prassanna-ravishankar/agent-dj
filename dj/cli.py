@@ -15,6 +15,7 @@ from rich.table import Table
 from dj.agent import AgentController
 from dj.analysis.local import LocalAnalyzer
 from dj.codex_client import CodexAppServer
+from dj.deck_keeper import DeckKeeper
 from dj.doctor import inspect_environment
 from dj.generator.magenta_live import MagentaLiveGenerator
 from dj.mixer.supercollider import SuperColliderMixer
@@ -39,7 +40,10 @@ from dj.verification.session import verify_scripted_audio, verify_session
 
 app = typer.Typer(no_args_is_help=True, help="Local-first autonomous DJ control plane.")
 verify_app = typer.Typer(no_args_is_help=True, help="Machine-verifiable subsystem checks.")
-agent_app = typer.Typer(no_args_is_help=True, help="Local observation-to-music agent.")
+agent_app = typer.Typer(
+    no_args_is_help=True,
+    help="Triggered local music decisions; the persistent observation worker is optional.",
+)
 stream_app = typer.Typer(no_args_is_help=True, help="Continuous local MRT2 stream controls.")
 codex_app = typer.Typer(no_args_is_help=True, help="Project-local Codex thread controls.")
 app.add_typer(verify_app, name="verify")
@@ -329,6 +333,22 @@ def agent_stop(json_output: bool = typer.Option(False, "--json")) -> None:
 @agent_app.command("status")
 def agent_status(json_output: bool = typer.Option(False, "--json")) -> None:
     emit(AgentController().status(), json_output)
+
+
+@agent_app.command("prepare-next")
+def agent_prepare_next(
+    direction: str | None = typer.Option(
+        None, "--direction", help="Optional direction; otherwise derive one from the playing deck."
+    ),
+    duration: float = typer.Option(64.0, "--duration", min=2.0, max=600.0),
+    bpm: float | None = typer.Option(None, "--bpm", min=40.0, max=240.0),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Run one local off-air deck preparation job, then exit without starting the agent."""
+    result = DeckKeeper().prepare(direction=direction, duration=duration, bpm=bpm)
+    emit(result, json_output)
+    if not result["ok"]:
+        raise typer.Exit(1)
 
 
 @stream_app.command("status")

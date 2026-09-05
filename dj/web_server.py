@@ -137,6 +137,11 @@ class GenerateRequest(BaseModel):
     duration: float = Field(ge=2, le=600)
 
 
+class PrepareNextRequest(BaseModel):
+    direction: str | None = Field(default=None, max_length=1000)
+    duration: float = Field(default=64, ge=2, le=600)
+
+
 class PlayRequest(BaseModel):
     deck: DeckName
 
@@ -256,6 +261,14 @@ async def generate(request: GenerateRequest) -> Response:
         "generate", request.deck.value, "--prompt", request.prompt, "--bpm", str(request.bpm),
         "--duration", str(request.duration), timeout=600,
     )
+
+
+@app.post("/api/agent/prepare-next")
+async def prepare_next(request: PrepareNextRequest) -> dict[str, object]:
+    args = ["agent", "prepare-next", "--duration", str(request.duration)]
+    if request.direction and request.direction.strip():
+        args.extend(("--direction", request.direction.strip()))
+    return await _run_dj(*args, timeout=660)
 
 
 @app.post("/api/play", status_code=204)

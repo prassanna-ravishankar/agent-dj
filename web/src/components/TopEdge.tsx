@@ -1,8 +1,8 @@
 /**
- * The top edge: recording hairline plus runtime and agent health blocks.
+ * The top edge: recording hairline plus runtime and set-conductor health blocks.
  *
  * Recording is a persistent red hairline along the FULL top edge of the viewport —
- * impossible to miss, impossible to mistake for anything else. Agent absence is rendered
+ * impossible to miss, impossible to mistake for anything else. Conductor absence is rendered
  * calmly: it is a survivable, designed state, not an error.
  */
 
@@ -11,7 +11,7 @@ import styles from './TopEdge.module.css'
 
 interface Props {
   runtime: ProcessHealth
-  agent: ProcessHealth
+  conductor: ProcessHealth
   recording: boolean
   sessionId: string
   demo: boolean
@@ -39,7 +39,7 @@ function HealthBlock({
   )
 }
 
-export function TopEdge({ runtime, agent, recording, sessionId, demo }: Props) {
+export function TopEdge({ runtime, conductor, recording, sessionId, demo }: Props) {
   return (
     <>
       <div
@@ -62,9 +62,9 @@ export function TopEdge({ runtime, agent, recording, sessionId, demo }: Props) {
             absentNote="SuperCollider is not running; this system is producing no audio."
           />
           <HealthBlock
-            name="Agent"
-            health={agent}
-            absentNote="No new decisions will be made. Audio continues on the current deck."
+            name="Conductor"
+            health={conductor}
+            absentNote="No new set cues will be made. Audio continues on the current deck."
           />
         </div>
         <div className={styles.right}>
@@ -76,11 +76,10 @@ export function TopEdge({ runtime, agent, recording, sessionId, demo }: Props) {
           <span className={`mono ${styles.session}`}>{sessionId}</span>
         </div>
       </header>
-      {!agent.running && runtime.running ? (
+      {!conductor.running && runtime.running ? (
         <p className={styles.agentNote} data-state="agent-absent">
           <span className={styles.agentNoteMark} aria-hidden="true" />
-          No new decisions — the current deck continues. Feedback will be recorded but not acted
-          on until the agent is running.
+          No new set cues — the current deck continues. Start or resume the conductor from Set.
         </p>
       ) : null}
     </>

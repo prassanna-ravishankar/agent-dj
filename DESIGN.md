@@ -65,6 +65,7 @@ The design is mostly defined by what it will not show.
 | No fallback bar number | The clock is derived and uncorrected | `clock.ts` returns `null` |
 | No fixture fallback on a live failure | Demo mode is an explicit, marked source | `client.ts` fails with `unavailable` |
 | No capability the CLI lacks | The client has no method for it | contract test |
+| No implicit set start | Loading the page, connecting an agent, or choosing a view is not consent to start audio | `SetSteerer` requires the explicit **START … SET** action |
 
 ## 4. Critical states
 
@@ -132,6 +133,33 @@ Two structural facts the surface makes visible:
   disruptive takes 4. The system is more patient when asked to keep going — consistent with
   `SOUL.md`: "If something works, allow it to work."
 
+### Set Steerer — brief once, steer anytime
+
+**Set** is the default route and the primary human interface. Its composition follows a radio
+console rather than a configuration dashboard: one broad brief establishes the programme; an
+on-air band, the set arc, and **Now / Next cue** keep the running story legible; one **Tell the
+DJ** field accepts interventions in ordinary musical language. A human should not need to operate
+decks, prompt lanes, or process controls to sustain a long set.
+
+The stopped view deliberately asks for only a brief and a length, with one explicit start action.
+Nothing starts when the page loads or an agent connects. Pressing Start is the act that starts the
+runtime and the local conductor; until then the surface remains inert.
+
+The conductor turns the requested duration into six passages — **arrival, gather, rise, crest,
+return, landing**. It is event-driven: it sleeps until the next planned cue or an explicit steering
+signal, prepares only the off-air deck, and crosses over eight bars. Its prompt translation is
+deterministic and local; the implemented path makes no hosted model call and spends no hosted
+tokens. This is a musical steward, not a chat agent continuously watching the set.
+
+Intervention remains available throughout. A free-form direction or a concise suggestion wakes the
+conductor and shapes the next passage. **Hold this** freezes new conductor decisions while current
+audio continues; resuming restarts decisions. **End conductor** ends the plan but intentionally
+leaves the current safe deck looping — it is not an audio stop control.
+
+Precise controls remain available but subordinate under **Backstage**: Manual contains the Control
+Room instrument, System exposes runtime truth, and Pre-set handles deck preparation. Do not promote
+these views back into the default journey or duplicate their implementation detail in Set.
+
 ### Control Room — a personal instrument
 
 The Control Room is composed as an instrument, not a SaaS settings page. **Play** is the default
@@ -179,7 +207,10 @@ transition, then a 2×3 thumb grid of gestures. Filter and master metering are d
 horizon band survives but its ruler and travelling ticks are dropped as unreadable at that size.
 In the Control Room, the desktop prompt constellation likewise becomes a 2×3 tactile direction
 bank: preserve the same weighted choices, but remove the centroid rings and spatial geometry that
-do not survive at thumb scale.
+do not survive at thumb scale. In Set, steering moves ahead of programme detail: on-air truth and
+the six-part arc remain first, then the composer and intervention keys, followed by the fuller
+Now / Next descriptions. This keeps the next human action reachable without turning the mobile
+surface into a miniature console.
 
 **Keyboard throughout** — `1`–`6` feedback, `A`/`B` deck focus, `Space` play, `C` crossfade,
 `R` record (confirmed), `/` chain, `?` reference. Visible focus rings, logical tab order, ARIA

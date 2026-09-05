@@ -4,9 +4,10 @@
 
 <h1 align="center">Agent DJ</h1>
 
-Agent DJ is a functioning local-first generative music system. The official Magenta RealTime 2
-SuperCollider UGen generates a continuous stream, SuperCollider keeps a looping safety deck ready
-underneath it, and a separate local agent turns observations into scheduled musical intent.
+Agent DJ is a functioning local-first generative music system. Brief a 60–180+ minute set once,
+then steer it in plain language while an event-driven local conductor carries the arc. The official
+Magenta RealTime 2 SuperCollider UGen generates a continuous stream and SuperCollider keeps a
+looping safety deck ready underneath it.
 
 The central rule is simple: **music must not stop**. Model loading, prompt encoding, policy,
 analysis, network access, and file work never run in the real-time audio callback. The safety deck
@@ -14,11 +15,19 @@ keeps looping if the web app, policy agent, Codex bridge, or MRT2 output disappe
 
 ## The instrument
 
-The Play surface turns six weighted prompts into one continuous musical space. Tap a direction to
-move toward it smoothly; detailed prompt editing lives under Shape, while Codex stays available as
-an optional collaborator outside the audio path.
+The default surface is a radio-console-like set steerer: the musical brief and long arc remain
+visible, Now/Next tells you what the conductor believes it is doing, and one input accepts human
+intervention at any time.
 
-![Agent DJ prompt-gravity performance surface](assets/screenshots/control-room-desktop.png)
+![Agent DJ long-set steerer in progress](assets/screenshots/set-steerer-desktop.png)
+
+Before the set, the whole launch path is one brief plus one explicit button—nothing auto-starts.
+
+![Agent DJ stopped set briefing surface](assets/screenshots/set-steerer-stopped.png)
+
+The lower-level Play surface still turns six weighted prompts into one continuous musical space.
+Detailed prompt editing lives under Shape, while Codex stays available as an optional collaborator
+outside the audio path.
 
 <p align="center">
   <img src="assets/screenshots/control-room-mobile.png" width="390" alt="Agent DJ mobile direction bank">
@@ -31,6 +40,7 @@ flowchart LR
     web[Web control room] --> api[Loopback web API]
     hosts[Claude / Codex] --> mcp[Local MCP server]
     terminal[Terminal] --> cli[Certified dj CLI]
+    conductor[Event-driven local conductor] --> keeper[Triggered off-air generation]
     api --> cli
     mcp --> cli
     api <--> bridge[Codex App Server bridge]
@@ -45,6 +55,8 @@ flowchart LR
       mcp
       bridge
       policy
+      conductor
+      keeper
       cli
     end
 
@@ -57,6 +69,7 @@ flowchart LR
 
     osc --> safe
     osc --> mrt2
+    keeper --> osc
 ```
 
 MRT2 must produce sustained signal for two seconds before the guard admits it. A 120 ms stream
@@ -91,6 +104,30 @@ Network access is needed only for initial installation and optional hosted codin
 Performance-time MRT2 inference, state, observations, scheduling, audio, and analysis are local.
 
 ## Run it
+
+The human path is one explicit action after a safety deck exists:
+
+```bash
+uv run dj set start \
+  --brief "modern Indian house fusion, warm hand percussion, deep bass, patient evolution" \
+  --minutes 90 --json
+```
+
+Intervene at any point without stopping the set:
+
+```bash
+uv run dj set steer --text "bring the tabla forward, make the synths less busy" --json
+uv run dj set hold --json      # current music continues; no new decisions
+uv run dj set resume --json
+uv run dj set end --json       # conductor ends; current music still continues
+```
+
+The conductor is local, deterministic, and event-driven: it sleeps until a timed cue or a steering
+signal, uses no hosted model tokens, prepares the off-air deck, and transitions safely. At the end
+of the planned duration, it deliberately leaves the current deck looping. Nothing auto-starts when
+the page opens.
+
+The lower-level terminal path remains available:
 
 Prepare one safety deck, cache a prompt, request the stream, and start the runtime. MRT2 model
 loading begins only after the safety graph is audible.
@@ -128,11 +165,12 @@ The triggered keeper generates, analyses, and prepares one deck, then exits. It 
 the background, starts the agent/runtime, spends hosted-model tokens, or transitions automatically.
 Pass `--direction "..."` when you want to override its deterministic continuation.
 
-## Browser control room
+## Browser set steerer
 
-The standalone web app controls runtime safety, continuous prompt lanes, phrase-scheduled morphs,
-fallback state, and project-scoped Codex threads. It calls the certified CLI and is never in the
-audio path; closing it cannot stop playback.
+The standalone web app opens on the Set Steerer: one broad brief, a 90-minute default, a visible
+six-part arc, Now/Next intent, and one “Tell the DJ” field for live interventions. Manual decks,
+continuous prompt lanes, diagnostics, pre-set generation, and Codex are retained under Backstage.
+It calls the certified CLI and is never in the audio path; closing it cannot stop playback.
 
 ```bash
 cd web && npm ci && npm run build && cd ..
@@ -154,6 +192,9 @@ generation and fallback remain local, and the deterministic policy is the fully 
 
 - `dj_inspect` — state, process health, on-air deck, and future coverage
 - `dj_submit_observation` — source-neutral feedback
+- `dj_set_status` — inspect the long-running set arc and conductor
+- `dj_set_steer` — give the conductor a high-level intervention
+- `dj_set_hold` — freeze/resume new decisions without touching audio
 - `dj_prepare_next` — prepare and analyse an off-air fallback deck
 - `dj_schedule_transition` — schedule a prepared deck on the musical clock
 - `dj_stream_set_prompt` — cache one of six continuous directions

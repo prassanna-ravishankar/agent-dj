@@ -68,6 +68,34 @@ That explicit instruction temporarily overrides continuity for the requested mai
 
 ## Starting music from a chat request
 
+The normal product mode is a steered long set. For a broad request such as “play modern Indian
+house fusion for 90 minutes,” prefer the single explicit start command once a safety deck exists:
+
+```bash
+uv run dj set start --brief "modern Indian house fusion, warm percussion, patient arc" --minutes 90 --json
+```
+
+This explicit command starts the runtime and an event-driven local conductor. The conductor sleeps
+until its next cue or a steering signal, prepares only the off-air deck, and transitions over eight
+bars. It uses no hosted model or hosted tokens. The set moves through arrival, gather, rise, crest,
+return, and landing phases. At the planned end, conductor decisions stop but the current safe deck
+keeps looping; audio never auto-stops.
+
+During a steered set, translate conversation through the conductor boundary:
+
+```bash
+uv run dj set status --json
+uv run dj set steer --text "bring the tabla forward and make the synths less busy" --json
+uv run dj set hold --json
+uv run dj set resume --json
+uv run dj set end --json
+```
+
+`set steer` is a trigger, not a polling chat-agent turn. It wakes the local conductor immediately.
+`set hold` freezes future conductor decisions while audio continues. `set end` ends the conductor,
+not the audio runtime. Do not start a set merely because the web page or an agent connects; a human
+must explicitly request or press Start.
+
 For a request such as “play something warm and groovy”:
 
 1. Inspect `uv run dj state --json`.
@@ -110,10 +138,10 @@ Treat user language as musical intent, not as a literal request for one DSP knob
 - “This is boring”: use `uv run dj feedback boring --json` for controlled novelty.
 - “That is weird / I dislike it”: use `uv run dj feedback weird --json` or
   `uv run dj feedback dislike --json`; prefer a coherent alternative over an emergency cut.
-- “Hold this”: inspect state, run `uv run dj agent stop --json`, and make no weight/prompt changes.
-  This freezes autonomous execution without touching audio. Existing pending schedules are retained,
-  not cancelled, and may become due when the agent restarts; review recent events before releasing
-  the hold. There is currently no atomic schedule-cancel command—say so rather than pretending.
+- “Hold this”: inspect state. If the set conductor is running, run `uv run dj set hold --json`.
+  Otherwise run `uv run dj agent stop --json`. Both freeze new autonomous execution without
+  touching audio. Existing legacy schedules are retained, not cancelled, and may become due when
+  the legacy agent restarts; review recent events before releasing that hold.
 - “Go safe / fallback”: run `uv run dj stream fallback true --json` after inspecting state.
 - “Bring the model back”: run `uv run dj stream fallback false --json`; the guard will requalify it.
 
@@ -220,7 +248,7 @@ Never describe the keeper as autonomous playback. It only prepares. A separate e
 - `uv run dj web --port 8765 --json` serves the loopback-only control room. Closing it must not
   affect audio.
 - `dj-mcp` exposes inspection, feedback, preparation, scheduling, and stream intent to Claude or
-  Codex. It intentionally cannot stop/restart audio.
+  Codex, plus conductor status/steer/hold. It intentionally cannot start/stop the audio runtime.
 - The web Codex bridge uses a project-private local socket. Its transport is local, but hosted Codex
   inference may use the network. It is a coding collaborator, not part of the audio path.
 - Music generation, fallback, state, policy, and analysis remain local after installation.

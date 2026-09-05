@@ -25,6 +25,7 @@ from dj.runtime import RuntimeController
 from dj.scheduler import ScheduleStore, resolve_bar
 from dj.scripted import ScriptedDJ
 from dj.session import SessionStore
+from dj.set_conductor import SetConductor
 from dj.transport import Transport
 from dj.verification.audio import (
     verify_continuity,
@@ -46,10 +47,12 @@ agent_app = typer.Typer(
 )
 stream_app = typer.Typer(no_args_is_help=True, help="Continuous local MRT2 stream controls.")
 codex_app = typer.Typer(no_args_is_help=True, help="Project-local Codex thread controls.")
+set_app = typer.Typer(no_args_is_help=True, help="Brief once, then steer a long local set.")
 app.add_typer(verify_app, name="verify")
 app.add_typer(agent_app, name="agent")
 app.add_typer(stream_app, name="stream")
 app.add_typer(codex_app, name="codex")
+app.add_typer(set_app, name="set")
 console = Console()
 
 
@@ -65,7 +68,10 @@ def emit(data: Any, json_output: bool) -> None:
     if isinstance(data, dict):
         table = Table(show_header=False, box=None)
         for key, value in data.items():
-            table.add_row(str(key), json.dumps(value, default=str) if isinstance(value, (dict, list)) else str(value))
+            table.add_row(
+                str(key),
+                json.dumps(value, default=str) if isinstance(value, (dict, list)) else str(value),
+            )
         console.print(table)
     else:
         console.print(data)
@@ -220,7 +226,11 @@ def verify_scripted_set_command(
         try:
             performance = ScriptedDJ().perform()
             report = verify_session(performance["session_id"])
-            audio = verify_scripted_audio(Path(report["render"])) if report.get("render") else {"ok": False}
+            audio = (
+                verify_scripted_audio(Path(report["render"]))
+                if report.get("render")
+                else {"ok": False}
+            )
             result = {
                 "ok": bool(report["ok"] and audio["ok"]),
                 "performance": performance,
@@ -351,6 +361,47 @@ def agent_prepare_next(
         raise typer.Exit(1)
 
 
+@set_app.command("start")
+def set_start(
+    brief: str = typer.Option(..., "--brief", help="High-level musical direction."),
+    minutes: int = typer.Option(90, "--minutes", min=15, max=720),
+    test_mode: bool = typer.Option(False, "--test-mode", help="Use deterministic test audio."),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Explicitly start audio and an event-driven, token-free local set conductor."""
+    emit(SetConductor().start_set(brief, minutes, test_mode=test_mode), json_output)
+
+
+@set_app.command("status")
+def set_status(json_output: bool = typer.Option(False, "--json")) -> None:
+    emit(SetConductor().status(), json_output)
+
+
+@set_app.command("steer")
+def set_steer(
+    text: str = typer.Option(..., "--text", help="Plain-language direction for the next passage."),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    emit(SetConductor().steer(text), json_output)
+
+
+@set_app.command("hold")
+def set_hold(json_output: bool = typer.Option(False, "--json")) -> None:
+    """Freeze new conductor decisions without touching audio."""
+    emit(SetConductor().hold(True), json_output)
+
+
+@set_app.command("resume")
+def set_resume(json_output: bool = typer.Option(False, "--json")) -> None:
+    emit(SetConductor().hold(False), json_output)
+
+
+@set_app.command("end")
+def set_end(json_output: bool = typer.Option(False, "--json")) -> None:
+    """End conductor decisions; the current music keeps looping."""
+    emit(SetConductor().end(), json_output)
+
+
 @stream_app.command("status")
 def stream_status(json_output: bool = typer.Option(False, "--json")) -> None:
     """Inspect configured intent and live stream/fallback health."""
@@ -434,8 +485,11 @@ def stream_weight(
     if RuntimeController(store).status()["running"]:
         SuperColliderMixer().stream_weight(slot, weight, seconds)
     event = store.events().append(
-        "stream_weight_morphed", slot=slot, from_weight=previous,
-        to_weight=weight, duration_seconds=seconds,
+        "stream_weight_morphed",
+        slot=slot,
+        from_weight=previous,
+        to_weight=weight,
+        duration_seconds=seconds,
     )
     emit({"ok": True, "event": event, "prompt": prompt.model_dump()}, json_output)
 
@@ -487,9 +541,7 @@ def stream_settings(
         mixer = SuperColliderMixer()
         mixer.stream_temperature(temperature)
         mixer.stream_top_k(top_k)
-    event = store.events().append(
-        "stream_settings_changed", temperature=temperature, top_k=top_k
-    )
+    event = store.events().append("stream_settings_changed", temperature=temperature, top_k=top_k)
     emit({"ok": True, "event": event, "stream": state.stream.model_dump()}, json_output)
 
 
@@ -584,8 +636,10 @@ def codex_new(
         state.codex.turn_status = str(turn["status"])
     store.save(state)
     event = store.events().append(
-        "codex_thread_started", thread_id=thread_id,
-        turn_id=state.codex.turn_id, prompt_submitted=turn is not None,
+        "codex_thread_started",
+        thread_id=thread_id,
+        turn_id=state.codex.turn_id,
+        prompt_submitted=turn is not None,
     )
     emit({"ok": True, "thread": thread, "turn": turn, "event": event}, json_output)
 
@@ -623,7 +677,8 @@ def codex_send(
     state.codex.turn_status = str(turn["status"])
     store.save(state)
     event = store.events().append(
-        "codex_turn_started", thread_id=state.codex.thread_id,
+        "codex_turn_started",
+        thread_id=state.codex.thread_id,
         turn_id=state.codex.turn_id,
     )
     emit({"ok": True, "turn": turn, "event": event}, json_output)
@@ -641,11 +696,10 @@ def codex_steer(
     state = store.load()
     if state.codex.thread_id is None or state.codex.turn_id is None:
         raise typer.BadParameter("no active Codex turn is attached")
-    result = CodexAppServer().steer(
-        state.codex.thread_id, state.codex.turn_id, prompt.strip()
-    )
+    result = CodexAppServer().steer(state.codex.thread_id, state.codex.turn_id, prompt.strip())
     event = store.events().append(
-        "codex_turn_steered", thread_id=state.codex.thread_id,
+        "codex_turn_steered",
+        thread_id=state.codex.thread_id,
         turn_id=state.codex.turn_id,
     )
     emit({"ok": True, **result, "event": event}, json_output)
@@ -679,7 +733,8 @@ def codex_interrupt(json_output: bool = typer.Option(False, "--json")) -> None:
     state.codex.turn_status = "interrupted"
     store.save(state)
     event = store.events().append(
-        "codex_turn_interrupted", thread_id=state.codex.thread_id,
+        "codex_turn_interrupted",
+        thread_id=state.codex.thread_id,
         turn_id=state.codex.turn_id,
     )
     emit({"ok": True, **result, "event": event}, json_output)
@@ -699,10 +754,11 @@ def feedback(
         observation_id=observation.id,
         observation=observation.model_dump(mode="json"),
     )
-    ObservationStore(
-        store.root / state.session_id / "observations.jsonl"
-    ).append(observation)
-    emit({"ok": True, "observation": observation.model_dump(mode="json"), "event": event}, json_output)
+    ObservationStore(store.root / state.session_id / "observations.jsonl").append(observation)
+    emit(
+        {"ok": True, "observation": observation.model_dump(mode="json"), "event": event},
+        json_output,
+    )
 
 
 @app.command(context_settings={"ignore_unknown_options": True})
@@ -717,7 +773,9 @@ def gain(
     state = store.load()
     state.decks[deck].gain_db = gain_db
     store.save(state)
-    event = store.events().append("parameter_changed", deck=deck, parameter="gain_db", value=gain_db)
+    event = store.events().append(
+        "parameter_changed", deck=deck, parameter="gain_db", value=gain_db
+    )
     emit({"ok": True, "event": event}, json_output)
 
 
@@ -729,8 +787,10 @@ def filter_command(
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
     SuperColliderMixer().set_filter(deck, kind, frequency_hz)
-    event = SessionStore().events().append(
-        "parameter_changed", deck=deck, parameter=kind, value=frequency_hz
+    event = (
+        SessionStore()
+        .events()
+        .append("parameter_changed", deck=deck, parameter=kind, value=frequency_hz)
     )
     emit({"ok": True, "event": event}, json_output)
 
@@ -810,9 +870,13 @@ def record(
         state = SessionStore().load()
         path = SessionStore().root / state.session_id / "renders" / "master.wav"
     SuperColliderMixer().record(action, path)
-    event = SessionStore().events().append(
-        f"recording_{'started' if action == 'start' else 'stopped'}",
-        path=str(path) if path else None,
+    event = (
+        SessionStore()
+        .events()
+        .append(
+            f"recording_{'started' if action == 'start' else 'stopped'}",
+            path=str(path) if path else None,
+        )
     )
     emit({"ok": True, "event": event}, json_output)
 
@@ -831,13 +895,19 @@ def generate(
     event_log = store.events()
     conditioned_prompt = f"{prompt}, around {bpm:g} BPM"
     requested = event_log.append(
-        "generation_requested", deck=deck, prompt=conditioned_prompt,
-        bpm=bpm, duration_seconds=duration, model="mrt2_small",
+        "generation_requested",
+        deck=deck,
+        prompt=conditioned_prompt,
+        bpm=bpm,
+        duration_seconds=duration,
+        model="mrt2_small",
     )
     generator = MagentaLiveGenerator()
     output = (
-        store.root / state.session_id / "generated" /
-        f"{deck.value}-{datetime.now(UTC).strftime('%H%M%S')}.wav"
+        store.root
+        / state.session_id
+        / "generated"
+        / f"{deck.value}-{datetime.now(UTC).strftime('%H%M%S')}.wav"
     )
 
     async def run_generation() -> dict[str, Any]:
@@ -865,9 +935,14 @@ def generate(
     if RuntimeController().status()["running"]:
         SuperColliderMixer().load(deck, output)
     ready = event_log.append(
-        "generation_ready", deck=deck, path=str(output), model="mrt2_small",
-        prompt=conditioned_prompt, requested_event=requested["ts"],
-        realtime_factor=health.get("realtime_factor"), local_only=True,
+        "generation_ready",
+        deck=deck,
+        path=str(output),
+        model="mrt2_small",
+        prompt=conditioned_prompt,
+        requested_event=requested["ts"],
+        realtime_factor=health.get("realtime_factor"),
+        local_only=True,
     )
     emit({"ok": True, "event": ready, "generator": health}, json_output)
 

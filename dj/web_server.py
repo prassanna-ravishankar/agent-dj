@@ -22,6 +22,7 @@ from dj.models import DeckName
 from dj.observations import FeedbackKind
 from dj.runtime import RuntimeController
 from dj.session import SessionStore
+from dj.set_conductor import SetConductor
 
 
 def _read_jsonl(path: Path, *, inner: str | None = None) -> list[dict[str, object]]:
@@ -59,6 +60,7 @@ def _snapshot() -> dict[str, object]:
         "state": state.model_dump(mode="json"),
         "runtime": RuntimeController(store).status(),
         "agent": AgentController().status(),
+        "conductor": SetConductor(store).status(),
         "codex_bridge": CodexAppServer().status(),
         "codex_events": _read_jsonl(store.root / ".codex-bridge-events.jsonl"),
         "events": _read_jsonl(session_dir / "events.jsonl"),
@@ -170,6 +172,16 @@ class FeedbackRequest(BaseModel):
     kind: FeedbackKind
 
 
+class SetStartRequest(BaseModel):
+    brief: str = Field(min_length=1, max_length=1000)
+    minutes: int = Field(default=90, ge=15, le=720)
+    test_mode: bool = False
+
+
+class SetSteerRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+
+
 class StreamPromptRequest(BaseModel):
     slot: int = Field(ge=0, le=5)
     text: str = Field(min_length=1, max_length=1000)
@@ -250,6 +262,34 @@ async def agent_stop() -> dict[str, object]:
     return AgentController().status()
 
 
+@app.post("/api/set/start")
+async def set_start(request: SetStartRequest) -> dict[str, object]:
+    args = ["set", "start", "--brief", request.brief, "--minutes", str(request.minutes)]
+    if request.test_mode:
+        args.append("--test-mode")
+    return await _run_dj(*args, timeout=660)
+
+
+@app.post("/api/set/steer")
+async def set_steer(request: SetSteerRequest) -> dict[str, object]:
+    return await _run_dj("set", "steer", "--text", request.text)
+
+
+@app.post("/api/set/hold")
+async def set_hold() -> dict[str, object]:
+    return await _run_dj("set", "hold")
+
+
+@app.post("/api/set/resume")
+async def set_resume() -> dict[str, object]:
+    return await _run_dj("set", "resume")
+
+
+@app.post("/api/set/end")
+async def set_end() -> dict[str, object]:
+    return await _run_dj("set", "end")
+
+
 async def _no_content(*args: str, timeout: float = 30.0) -> Response:
     await _run_dj(*args, timeout=timeout)
     return Response(status_code=204)
@@ -258,8 +298,15 @@ async def _no_content(*args: str, timeout: float = 30.0) -> Response:
 @app.post("/api/generate", status_code=204)
 async def generate(request: GenerateRequest) -> Response:
     return await _no_content(
-        "generate", request.deck.value, "--prompt", request.prompt, "--bpm", str(request.bpm),
-        "--duration", str(request.duration), timeout=600,
+        "generate",
+        request.deck.value,
+        "--prompt",
+        request.prompt,
+        "--bpm",
+        str(request.bpm),
+        "--duration",
+        str(request.duration),
+        timeout=600,
     )
 
 
@@ -288,9 +335,7 @@ async def gain(request: GainRequest) -> Response:
 
 @app.post("/api/filter", status_code=204)
 async def filter_command(request: FilterRequest) -> Response:
-    return await _no_content(
-        "filter", request.deck.value, request.kind, str(request.frequency_hz)
-    )
+    return await _no_content("filter", request.deck.value, request.kind, str(request.frequency_hz))
 
 
 @app.post("/api/record", status_code=204)
@@ -306,24 +351,40 @@ async def feedback(request: FeedbackRequest) -> Response:
 @app.post("/api/stream/prompt", status_code=204)
 async def stream_prompt(request: StreamPromptRequest) -> Response:
     return await _no_content(
-        "stream", "prompt", str(request.slot), "--text", request.text,
-        "--weight", str(request.weight),
+        "stream",
+        "prompt",
+        str(request.slot),
+        "--text",
+        request.text,
+        "--weight",
+        str(request.weight),
     )
 
 
 @app.post("/api/stream/weight", status_code=204)
 async def stream_weight(request: StreamWeightRequest) -> Response:
     return await _no_content(
-        "stream", "weight", str(request.slot), str(request.weight),
-        "--seconds", str(request.seconds),
+        "stream",
+        "weight",
+        str(request.slot),
+        str(request.weight),
+        "--seconds",
+        str(request.seconds),
     )
 
 
 @app.post("/api/stream/schedule", status_code=204)
 async def stream_schedule(request: StreamScheduleRequest) -> Response:
     return await _no_content(
-        "stream", "schedule", str(request.slot), "--weight", str(request.weight),
-        "--at", f"next-{request.phrase_bars}", "--bars", str(request.morph_bars),
+        "stream",
+        "schedule",
+        str(request.slot),
+        "--weight",
+        str(request.weight),
+        "--at",
+        f"next-{request.phrase_bars}",
+        "--bars",
+        str(request.morph_bars),
     )
 
 
@@ -336,8 +397,12 @@ async def stream_control(request: StreamControlRequest) -> Response:
 @app.post("/api/stream/settings", status_code=204)
 async def stream_settings(request: StreamSettingsRequest) -> Response:
     return await _no_content(
-        "stream", "settings", "--temperature", str(request.temperature),
-        "--top-k", str(request.top_k),
+        "stream",
+        "settings",
+        "--temperature",
+        str(request.temperature),
+        "--top-k",
+        str(request.top_k),
     )
 
 
@@ -408,9 +473,16 @@ def _change_signature() -> tuple[tuple[str, int, int], ...]:
     paths = [store.current_file]
     if current:
         root = store.root / current
-        paths.extend(root / name for name in (
-            "state.json", "events.jsonl", "decisions.jsonl", "schedules.jsonl"
-        ))
+        paths.extend(
+            root / name
+            for name in (
+                "state.json",
+                "set.json",
+                "events.jsonl",
+                "decisions.jsonl",
+                "schedules.jsonl",
+            )
+        )
     paths.append(store.root / ".codex-bridge-events.jsonl")
     signature = []
     for path in paths:

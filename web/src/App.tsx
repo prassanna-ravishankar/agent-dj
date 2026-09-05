@@ -22,12 +22,13 @@ import { Controls } from './components/Controls'
 import { Chain } from './components/Chain'
 import { Prepare } from './pages/Prepare'
 import { ControlRoom } from './pages/ControlRoom'
+import { SetSteerer } from './pages/SetSteerer'
 import { ShortcutOverlay } from './components/ShortcutOverlay'
 import styles from './App.module.css'
 
 const client = createLiveClient()
 
-type Route = 'console' | 'control' | 'prepare'
+type Route = 'set' | 'console' | 'control' | 'prepare'
 
 function readDemoFlag(): boolean {
   if (typeof window === 'undefined') return __DEMO_DEFAULT__
@@ -47,7 +48,7 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [demo] = useState(readDemoFlag)
   const [scenario, setScenario] = useState<ScenarioId>(readScenario)
-  const [route, setRoute] = useState<Route>('console')
+  const [route, setRoute] = useState<Route>('set')
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [tick, setTick] = useState(0)
   const chainRef = useRef<HTMLDivElement>(null)
@@ -245,12 +246,12 @@ export function App() {
   return (
     <div className={styles.app}>
       <a className={styles.skip} href="#main">
-        Skip to console
+        Skip to set
       </a>
 
       <TopEdge
         runtime={snapshot.runtime}
-        agent={snapshot.agent}
+        conductor={snapshot.conductor}
         recording={view.recording}
         sessionId={dj.session_id}
         demo={snapshot.demo}
@@ -293,18 +294,28 @@ export function App() {
         <button
           type="button"
           className={styles.navItem}
-          data-active={route === 'console' ? 'true' : 'false'}
-          onClick={() => setRoute('console')}
+          data-active={route === 'set' ? 'true' : 'false'}
+          onClick={() => setRoute('set')}
         >
-          Console
+          Set
+        </button>
+        <span className={styles.backstageLabel}>BACKSTAGE</span>
+        <button
+          type="button"
+          className={styles.navItem}
+          aria-label="Control room"
+          data-active={route === 'control' ? 'true' : 'false'}
+          onClick={() => setRoute('control')}
+        >
+          Manual
         </button>
         <button
           type="button"
           className={styles.navItem}
-          data-active={route === 'control' ? 'true' : 'false'}
-          onClick={() => setRoute('control')}
+          data-active={route === 'console' ? 'true' : 'false'}
+          onClick={() => setRoute('console')}
         >
-          Control room
+          System
         </button>
         <button
           type="button"
@@ -331,7 +342,15 @@ export function App() {
       ) : null}
 
       <main id="main" className={styles.main}>
-        {route === 'prepare' ? (
+        {route === 'set' ? (
+          <SetSteerer
+            snapshot={snapshot}
+            client={client}
+            demo={snapshot.demo}
+            onRefresh={load}
+            announce={announce}
+          />
+        ) : route === 'prepare' ? (
           <Prepare
             snapshot={snapshot}
             demo={snapshot.demo}

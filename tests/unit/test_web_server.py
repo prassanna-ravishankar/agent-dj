@@ -141,6 +141,33 @@ def test_prepare_next_is_a_one_shot_cli_trigger(tmp_path, monkeypatch) -> None:
     )
 
 
+def test_set_steerer_endpoints_translate_to_event_driven_cli(tmp_path, monkeypatch) -> None:
+    sessions = tmp_path / "sessions"
+    monkeypatch.setattr(settings, "sessions_dir", sessions)
+    SessionStore(sessions).create("web-test")
+    run_dj = AsyncMock(return_value={"ok": True, "hosted_tokens": False})
+    monkeypatch.setattr(web_server, "_run_dj", run_dj)
+
+    with TestClient(app) as client:
+        assert client.post(
+            "/api/set/start", json={"brief": "Indian house fusion", "minutes": 90}
+        ).status_code == 200
+        assert client.post(
+            "/api/set/steer", json={"text": "more tabla, less synth"}
+        ).status_code == 200
+        assert client.post("/api/set/hold").status_code == 200
+        assert client.post("/api/set/resume").status_code == 200
+        assert client.post("/api/set/end").status_code == 200
+
+    assert [call.args for call in run_dj.await_args_list] == [
+        ("set", "start", "--brief", "Indian house fusion", "--minutes", "90"),
+        ("set", "steer", "--text", "more tabla, less synth"),
+        ("set", "hold"),
+        ("set", "resume"),
+        ("set", "end"),
+    ]
+
+
 def test_codex_endpoints_include_lifecycle_and_steering(tmp_path, monkeypatch) -> None:
     sessions = tmp_path / "sessions"
     monkeypatch.setattr(settings, "sessions_dir", sessions)

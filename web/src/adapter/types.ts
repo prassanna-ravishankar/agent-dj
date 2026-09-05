@@ -118,6 +118,33 @@ export interface ProcessHealth {
   local_only: boolean
 }
 
+export type SetStatus = 'idle' | 'running' | 'held' | 'complete' | 'interrupted'
+
+export interface SteeredSet {
+  status: SetStatus
+  brief: string
+  duration_minutes: number
+  started_at: string | null
+  ends_at: string | null
+  phase: string
+  progress: number
+  current_direction: string | null
+  next_direction: string | null
+  current_note: string | null
+  next_note: string | null
+  next_cue_at: string | null
+  last_steering: string | null
+  cue_index: number
+  local_only: boolean
+  hosted_tokens: boolean
+  activity: string
+}
+
+export interface ConductorHealth extends ProcessHealth {
+  hosted_tokens: boolean
+  set: SteeredSet
+}
+
 /** Project-local Codex bridge health, included in every snapshot. */
 export interface CodexBridgeHealth {
   ok: boolean
@@ -241,6 +268,7 @@ export interface Snapshot {
   state: DJState
   runtime: ProcessHealth
   agent: ProcessHealth
+  conductor: ConductorHealth
   codex_bridge: CodexBridgeHealth
   events: EventRecord[]
   decisions: Decision[]

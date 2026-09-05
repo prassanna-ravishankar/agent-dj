@@ -60,6 +60,7 @@ def _combined_state() -> dict[str, object]:
     state = _command("state")
     runtime = _command("status")
     agent = _command("agent", "status")
+    conductor = _command("set", "status")
     future = state["future"]
     assert isinstance(future, dict)
     seconds = float(future["estimated_seconds"])
@@ -77,6 +78,7 @@ def _combined_state() -> dict[str, object]:
         "state": state,
         "runtime": runtime,
         "agent": agent,
+        "conductor": conductor,
         "safety": {
             "coverage": _coverage_state(seconds),
             "future_seconds": seconds,
@@ -155,6 +157,29 @@ def dj_submit_observation(
             else "recorded only; no musical response until the agent is running"
         ),
     }
+
+
+@mcp.tool()
+def dj_set_status() -> dict[str, object]:
+    """Inspect the long-running set arc and local event-driven conductor."""
+    return _command("set", "status")
+
+
+@mcp.tool()
+def dj_set_steer(direction: str) -> dict[str, object]:
+    """Translate one high-level intervention into the conductor's next safe passage."""
+    direction = direction.strip()
+    if not direction:
+        raise ValueError("direction must not be blank")
+    snapshot = _combined_state()
+    _require_safe_creative_change(snapshot)
+    return _command("set", "steer", "--text", direction)
+
+
+@mcp.tool()
+def dj_set_hold(held: bool = True) -> dict[str, object]:
+    """Freeze or resume new conductor decisions; current audio always continues."""
+    return _command("set", "hold" if held else "resume")
 
 
 @mcp.tool()

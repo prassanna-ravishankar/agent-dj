@@ -46,6 +46,11 @@ export interface DJClient {
   startAgent(testMode: boolean): Promise<Result<ProcessHealth>>
   stopAgent(): Promise<Result<ProcessHealth>>
   prepareNext(direction?: string, duration?: number): Promise<Result<Record<string, unknown>>>
+  startSet(brief: string, minutes: number, testMode?: boolean): Promise<Result<Record<string, unknown>>>
+  steerSet(text: string): Promise<Result<Record<string, unknown>>>
+  holdSet(): Promise<Result<Record<string, unknown>>>
+  resumeSet(): Promise<Result<Record<string, unknown>>>
+  endSet(): Promise<Result<Record<string, unknown>>>
   generate(deck: DeckName, prompt: string, bpm: number, duration: number): Promise<Result<void>>
   play(deck: DeckName): Promise<Result<void>>
   crossfade(target: DeckName, bars: number): Promise<Result<void>>
@@ -152,6 +157,14 @@ export function createLiveClient(): DJClient {
         { direction, duration },
         TIMEOUT_MS.generation,
       ),
+    startSet: (brief, minutes, testMode = false) =>
+      post<Record<string, unknown>>(
+        '/set/start', { brief, minutes, test_mode: testMode }, TIMEOUT_MS.generation,
+      ),
+    steerSet: (text) => post<Record<string, unknown>>('/set/steer', { text }),
+    holdSet: () => post<Record<string, unknown>>('/set/hold'),
+    resumeSet: () => post<Record<string, unknown>>('/set/resume'),
+    endSet: () => post<Record<string, unknown>>('/set/end'),
     generate: (deck, prompt, bpm, duration) =>
       post<void>('/generate', { deck, prompt, bpm, duration }, TIMEOUT_MS.generation),
     play: (deck) => post<void>('/play', { deck }),

@@ -30,6 +30,9 @@ def test_mcp_lists_only_the_agent_sized_tools() -> None:
     assert asyncio.run(exercise()) == [
         "dj_inspect",
         "dj_submit_observation",
+        "dj_set_status",
+        "dj_set_steer",
+        "dj_set_hold",
         "dj_prepare_next",
         "dj_schedule_transition",
         "dj_stream_set_prompt",
@@ -48,6 +51,8 @@ def test_inspect_returns_explicit_safety_context(monkeypatch) -> None:
             return {"ok": True, "running": True, "pid": 10, "local_only": True}
         if arguments == ("agent", "status"):
             return {"ok": True, "running": True, "pid": 11, "local_only": True}
+        if arguments == ("set", "status"):
+            return {"ok": True, "running": True, "hosted_tokens": False}
         raise AssertionError(arguments)
 
     monkeypatch.setattr(mcp_server, "_command", command)
@@ -79,6 +84,8 @@ def test_prepare_next_uses_the_off_air_deck_and_certified_cli(monkeypatch) -> No
             return {"ok": True, "running": True, "pid": 10, "local_only": True}
         if arguments == ("agent", "status"):
             return {"ok": True, "running": True, "pid": 11, "local_only": True}
+        if arguments == ("set", "status"):
+            return {"ok": True, "running": True, "hosted_tokens": False}
         commands.append(arguments)
         return {
             "ok": True,
@@ -126,6 +133,8 @@ def test_critical_live_session_without_playing_buffer_refuses_creative_work(
             return {"ok": True, "running": True, "pid": 10, "local_only": True}
         if arguments == ("agent", "status"):
             return {"ok": True, "running": True, "pid": 11, "local_only": True}
+        if arguments == ("set", "status"):
+            return {"ok": True, "running": True, "hosted_tokens": False}
         commands.append(arguments)
         return {"ok": True}
 
@@ -154,6 +163,8 @@ def test_stream_morph_uses_phrase_scheduled_certified_command(monkeypatch) -> No
             return {"ok": True, "running": True, "pid": 10, "local_only": True}
         if arguments == ("agent", "status"):
             return {"ok": True, "running": True, "pid": 11, "local_only": True}
+        if arguments == ("set", "status"):
+            return {"ok": True, "running": True, "hosted_tokens": False}
         commands.append(arguments)
         return {"ok": True}
 

@@ -133,6 +133,10 @@
   }
 
   .blockLabel {
+    display: inline;
+  }
+
+  .blockValue {
     display: none;
   }
 

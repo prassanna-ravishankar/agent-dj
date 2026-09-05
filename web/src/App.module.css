@@ -65,6 +65,16 @@
   background: var(--ground);
 }
 
+.backstageLabel {
+  align-self: center;
+  margin-left: auto;
+  padding-left: var(--space-4);
+  color: var(--ink-ghost);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+}
+
 .main {
   flex: 1 1 auto;
   display: flex;
@@ -229,6 +239,7 @@
 }
 
 @media (max-width: 420px) {
+  .backstageLabel { display: none; }
   .brand span {
     position: absolute;
     width: 1px;
